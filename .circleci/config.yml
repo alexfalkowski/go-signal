@@ -1,0 +1,79 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: alexfalkowski/go:2.65
+    working_directory: ~/go-signal
+    steps:
+      - checkout:
+          method: blobless
+      - run: git submodule sync
+      - run: git submodule update --init
+      - run: make source-key
+      - restore_cache:
+          name: restore go cache
+          keys:
+            - go-signal-go-cache-{{ checksum "go.sum" }}-{{ checksum "~/.go-version" }}-{{ checksum ".source-key" }}
+            - go-signal-go-cache-
+      - run: make clean
+      - run: make dep
+      - save_cache:
+          name: save go cache
+          key: go-signal-go-cache-{{ checksum "go.sum" }}-{{ checksum "~/.go-version" }}-{{ checksum ".source-key" }}
+          paths:
+            - ~/go/pkg/mod
+      - restore_cache:
+          name: restore go build cache
+          keys:
+            - go-signal-go-build-cache-{{ checksum "go.sum" }}-{{ checksum "~/.go-version" }}-{{ checksum ".source-key" }}
+            - go-signal-go-build-cache-
+      - restore_cache:
+          name: restore go lint cache
+          keys:
+            - go-signal-go-lint-cache-{{ checksum "go.sum" }}-{{ checksum "~/.go-lint-version" }}-{{ checksum ".source-key" }}
+            - go-signal-go-lint-cache-
+      - run: make clean
+      - run: make lint
+      - save_cache:
+          name: save go lint cache
+          key: go-signal-go-lint-cache-{{ checksum "go.sum" }}-{{ checksum "~/.go-lint-version" }}-{{ checksum ".source-key" }}
+          paths:
+            - ~/.cache/golangci-lint
+      - run: make sec
+      - run: make specs
+      - save_cache:
+          name: save go build cache
+          key: go-signal-go-build-cache-{{ checksum "go.sum" }}-{{ checksum "~/.go-version" }}-{{ checksum ".source-key" }}
+          paths:
+            - ~/.cache/go-build
+      - run: make coverage
+      - store_test_results:
+          path: test/reports
+      - store_artifacts:
+          path: test/reports
+      - run: make codecov-upload
+    resource_class: large
+  version:
+    docker:
+      - image: alexfalkowski/release:5.16
+    working_directory: ~/go-signal
+    steps:
+      - checkout:
+          method: blobless
+      - run: git submodule sync
+      - run: git submodule update --init
+      - run: version
+    resource_class: large
+
+workflows:
+  go-signal:
+    jobs:
+      - build
+      - version:
+          context: gh
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
