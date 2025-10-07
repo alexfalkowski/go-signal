@@ -3,9 +3,9 @@ package signal
 import (
 	"context"
 	"os/signal"
-	"syscall"
 	"time"
 
+	"github.com/alexfalkowski/go-signal/internal/os"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -83,7 +83,7 @@ func (l *Lifecycle) Server(ctx context.Context) error {
 		return err
 	}
 
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, os.Terminate)
 	defer stop()
 
 	<-ctx.Done()
@@ -97,5 +97,10 @@ func (l *Lifecycle) Server(ctx context.Context) error {
 
 // Terminate the lifecycle.
 func (l *Lifecycle) Terminate() error {
-	return syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+	process, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	return process.Signal(os.Interrupt)
 }
