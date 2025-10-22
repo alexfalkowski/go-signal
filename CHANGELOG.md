@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v0.3.1](https://github.com/alexfalkowski/go-signal/releases/tag/v0.3.1) - 2025-10-22
+
+- [`05ee2f4`](https://github.com/alexfalkowski/go-signal/commit/05ee2f40b682537e59c1a89bf8efbcc005ac646f) fix(signal): do not override ctx (#15)
+- [`2c8b59b`](https://github.com/alexfalkowski/go-signal/commit/2c8b59be935d0405ebb3ef27497432a59aeac442) build(ci): use latest published images (#14)
+- [`0e2aa66`](https://github.com/alexfalkowski/go-signal/commit/0e2aa66d41c3af094c3b2aa2f74d7be0acfef910) build(deps): bump bin from `09a61a1` to `5563606` (#12)
+- [`a65c4c2`](https://github.com/alexfalkowski/go-signal/commit/a65c4c26da0f766194e60eb3fda8a91703fa4b2b) build(ci): use latest published images (#13)
+- [`212bee0`](https://github.com/alexfalkowski/go-signal/commit/212bee05c90998d3bcfe56d4fae4848491f6d1ee) build(ci): use latest published images (#11)
+- [`459dc12`](https://github.com/alexfalkowski/go-signal/commit/459dc125ea4b55816798f4f13637a1e4ba3ae6fb) build(ci): use latest published images (#10)
+- [`84131e7`](https://github.com/alexfalkowski/go-signal/commit/84131e7e15af17f97db21c5395bdd6f49496457a) test(lc): add max_auto_reruns (#9)
+- [`c92634f`](https://github.com/alexfalkowski/go-signal/commit/c92634f59ae4f0d98448be559eb6c8977225e2b7) test(lc): add http and exec (#8)
+- [`0742846`](https://github.com/alexfalkowski/go-signal/commit/07428465a3d917583ecd2a5a88f16959bf18987f) build(deps): bump bin from `6aa86c4` to `09a61a1` (#7)
+- [`bef5280`](https://github.com/alexfalkowski/go-signal/commit/bef528039705c7a3e5f74b52caa53b827f0ab2fc) build(ci): use latest published images (#6)
+
 ## [v0.3.0](https://github.com/alexfalkowski/go-signal/releases/tag/v0.3.0) - 2025-10-07
 
 - [`2896377`](https://github.com/alexfalkowski/go-signal/commit/2896377150b9c3dbacc081026291d379ec264659) feat(lc): use os (#5)
