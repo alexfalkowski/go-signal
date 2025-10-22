@@ -2,10 +2,11 @@ package signal
 
 import (
 	"context"
+	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/alexfalkowski/go-signal/internal/os"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -83,10 +84,9 @@ func (l *Lifecycle) Server(ctx context.Context) error {
 		return err
 	}
 
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, os.Terminate)
-	defer stop()
-
-	<-ctx.Done()
+	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	<-notifyCtx.Done()
+	stop()
 
 	if err := l.Stop(ctx); err != nil {
 		return err
