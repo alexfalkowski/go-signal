@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v0.4.0](https://github.com/alexfalkowski/go-signal/releases/tag/v0.4.0) - 2025-10-30
+
+- [`696f54b`](https://github.com/alexfalkowski/go-signal/commit/696f54b62acdf10434eb5cf2aed44a07799ddb52) feat(lc): server should have a cancel context (#19)
+- [`e953278`](https://github.com/alexfalkowski/go-signal/commit/e95327842969c32015f38ced997617f4a219aa98) build(ci): use latest published images (#17)
+- [`324a2fb`](https://github.com/alexfalkowski/go-signal/commit/324a2fbaf299b1f7c953a316eeb79804589d6417) build(ci): use latest published images (#16)
+
 ## [v0.3.1](https://github.com/alexfalkowski/go-signal/releases/tag/v0.3.1) - 2025-10-22
 
 - [`05ee2f4`](https://github.com/alexfalkowski/go-signal/commit/05ee2f40b682537e59c1a89bf8efbcc005ac646f) fix(signal): do not override ctx (#15)
