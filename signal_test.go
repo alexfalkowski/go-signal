@@ -18,9 +18,9 @@ var errTest = errors.New("test")
 func TestHTTPServer(t *testing.T) {
 	srv := &http.Server{
 		Addr:              ":8080",
-		ReadHeaderTimeout: time.Hour,
+		ReadHeaderTimeout: time.Minute,
 	}
-	lc := signal.NewLifeCycle(signal.WithTimeout(time.Hour))
+	lc := signal.NewLifeCycle(signal.WithTimeout(time.Minute))
 	lc.Register(&signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			cfg := &net.ListenConfig{}
@@ -52,7 +52,7 @@ func TestHTTPServer(t *testing.T) {
 }
 
 func TestExec(t *testing.T) {
-	lc := signal.NewLifeCycle(signal.WithTimeout(time.Hour))
+	lc := signal.NewLifeCycle(signal.WithTimeout(time.Minute))
 	lc.Register(&signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return exec.CommandContext(ctx, "echo", "hello").Run()
@@ -65,7 +65,7 @@ func TestExec(t *testing.T) {
 }
 
 func TestClientEmpty(t *testing.T) {
-	lc := signal.NewLifeCycle(signal.WithTimeout(time.Hour))
+	lc := signal.NewLifeCycle(signal.WithTimeout(time.Minute))
 	lc.Register(&signal.Hook{})
 
 	require.NoError(t, lc.Client(t.Context(), func(context.Context) error {
@@ -109,7 +109,7 @@ func TestClientStopError(t *testing.T) {
 }
 
 func TestServerEmpty(t *testing.T) {
-	lc := signal.NewLifeCycle(signal.WithTimeout(time.Hour))
+	lc := signal.NewLifeCycle(signal.WithTimeout(time.Minute))
 	lc.Register(&signal.Hook{})
 
 	go func() {
@@ -174,6 +174,30 @@ func TestServerStopContextNoError(t *testing.T) {
 	lc.Register(&signal.Hook{
 		OnStop: func(ctx context.Context) error {
 			return ctx.Err()
+		},
+	})
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = lc.Terminate()
+	}()
+
+	require.NoError(t, lc.Server(t.Context()))
+}
+
+func TestServerStartContext(t *testing.T) {
+	lc := signal.NewLifeCycle(signal.WithTimeout(time.Minute))
+	lc.Register(&signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
+			go func(ctx context.Context) {
+				<-ctx.Done()
+			}(ctx)
+
+			return nil
 		},
 	})
 
