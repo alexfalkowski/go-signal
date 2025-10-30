@@ -80,13 +80,17 @@ func (l *Lifecycle) Client(ctx context.Context, h Handler) error {
 
 // Server will run start, wait for signal and stop.
 func (l *Lifecycle) Server(ctx context.Context) error {
-	if err := l.Start(ctx); err != nil {
+	startCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if err := l.Start(startCtx); err != nil {
 		return err
 	}
 
-	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	<-notifyCtx.Done()
-	stop()
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	<-sigs
+	cancel()
 
 	if err := l.Stop(ctx); err != nil {
 		return err

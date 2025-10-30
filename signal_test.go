@@ -144,6 +144,24 @@ func TestServerStartError(t *testing.T) {
 	require.Error(t, lc.Server(t.Context()))
 }
 
+func TestServerStartTimeout(t *testing.T) {
+	lc := signal.NewLifeCycle(signal.WithTimeout(time.Millisecond))
+	h := &signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			time.Sleep(2 * time.Second)
+			return ctx.Err()
+		},
+	}
+	lc.Register(h)
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = lc.Terminate()
+	}()
+
+	require.Error(t, lc.Server(t.Context()))
+}
+
 func TestServerStopError(t *testing.T) {
 	lc := signal.NewLifeCycle()
 	h := &signal.Hook{
@@ -159,4 +177,21 @@ func TestServerStopError(t *testing.T) {
 	}()
 
 	require.Error(t, lc.Server(t.Context()))
+}
+
+func TestServerStopContextNoError(t *testing.T) {
+	lc := signal.NewLifeCycle()
+	h := &signal.Hook{
+		OnStop: func(ctx context.Context) error {
+			return ctx.Err()
+		},
+	}
+	lc.Register(h)
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = lc.Terminate()
+	}()
+
+	require.NoError(t, lc.Server(t.Context()))
 }
