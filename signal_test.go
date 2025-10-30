@@ -127,11 +127,64 @@ func TestServerEmpty(t *testing.T) {
 	require.NoError(t, lc.Server(t.Context()))
 }
 
+func TestServerEmptyCancel(t *testing.T) {
+	lc := signal.NewLifeCycle(signal.WithTimeout(time.Hour))
+	h := &signal.Hook{}
+	lc.Register(h)
+
+	ctx, cancel := context.WithCancel(t.Context())
+
+	go func() {
+		time.Sleep(time.Second)
+		cancel()
+	}()
+
+	require.NoError(t, lc.Server(ctx))
+}
+
 func TestServerStartError(t *testing.T) {
 	lc := signal.NewLifeCycle()
 	h := &signal.Hook{
 		OnStart: func(context.Context) error {
 			return errTest
+		},
+	}
+	lc.Register(h)
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = lc.Terminate()
+	}()
+
+	require.Error(t, lc.Server(t.Context()))
+}
+
+func TestServerStartCancel(t *testing.T) {
+	lc := signal.NewLifeCycle(signal.WithTimeout(time.Hour))
+	h := &signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			time.Sleep(2 * time.Second)
+			return ctx.Err()
+		},
+	}
+	lc.Register(h)
+
+	ctx, cancel := context.WithCancel(t.Context())
+
+	go func() {
+		time.Sleep(time.Second)
+		cancel()
+	}()
+
+	require.Error(t, lc.Server(ctx))
+}
+
+func TestServerStartTimeout(t *testing.T) {
+	lc := signal.NewLifeCycle(signal.WithTimeout(time.Millisecond))
+	h := &signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			time.Sleep(2 * time.Second)
+			return ctx.Err()
 		},
 	}
 	lc.Register(h)
