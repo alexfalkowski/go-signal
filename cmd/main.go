@@ -15,7 +15,7 @@ func process(ctx context.Context) error {
 
 func main() {
 	logger := slog.Default()
-	lc := signal.NewLifeCycle()
+	lc := signal.NewLifeCycle(time.Minute)
 	lc.Register(&signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			go func() {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 // Handler used for hook.
@@ -36,13 +37,14 @@ func (h *Hook) Stop(ctx context.Context) error {
 }
 
 // NewLifeCycle handles hooks.
-func NewLifeCycle() *Lifecycle {
-	return &Lifecycle{hooks: make([]*Hook, 0)}
+func NewLifeCycle(timeout time.Duration) *Lifecycle {
+	return &Lifecycle{hooks: make([]*Hook, 0), timeout: timeout}
 }
 
 // Lifecycle of hooks.
 type Lifecycle struct {
-	hooks []*Hook
+	hooks   []*Hook
+	timeout time.Duration
 }
 
 // Register a hook.
@@ -79,7 +81,10 @@ func (l *Lifecycle) Server(ctx context.Context) error {
 	<-notifyCtx.Done()
 	stop()
 
-	if err := l.stop(ctx); err != nil {
+	stopCtx, cancel := context.WithTimeout(ctx, l.timeout)
+	defer cancel()
+
+	if err := l.stop(stopCtx); err != nil {
 		return err
 	}
 
