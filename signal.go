@@ -5,9 +5,34 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"golang.org/x/sync/errgroup"
 )
+
+// Handler used for hook.
+type Handler func(context.Context) error
+
+// Hook for a lifecycle.
+type Hook struct {
+	OnStart Handler
+	OnStop  Handler
+}
+
+// Start safely runs the OnStart.
+func (h *Hook) Start(ctx context.Context) error {
+	if h == nil || h.OnStart == nil {
+		return nil
+	}
+
+	return h.OnStart(ctx)
+}
+
+// Stop safely runs the OnStop.
+func (h *Hook) Stop(ctx context.Context) error {
+	if h == nil || h.OnStop == nil {
+		return nil
+	}
+
+	return h.OnStop(ctx)
+}
 
 // NewLifeCycle handles hooks.
 func NewLifeCycle() *Lifecycle {
@@ -73,27 +98,21 @@ func (l *Lifecycle) Terminate() error {
 }
 
 func (l *Lifecycle) start(ctx context.Context) error {
-	group := &errgroup.Group{}
-	group.SetLimit(len(l.hooks))
-
 	for _, hook := range l.hooks {
-		group.Go(func() error {
-			return hook.Start(ctx)
-		})
+		if err := hook.Start(ctx); err != nil {
+			return err
+		}
 	}
 
-	return group.Wait()
+	return nil
 }
 
 func (l *Lifecycle) stop(ctx context.Context) error {
-	group := &errgroup.Group{}
-	group.SetLimit(len(l.hooks))
-
 	for _, hook := range l.hooks {
-		group.Go(func() error {
-			return hook.Stop(ctx)
-		})
+		if err := hook.Stop(ctx); err != nil {
+			return err
+		}
 	}
 
-	return group.Wait()
+	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/alexfalkowski/go-signal"
 )
@@ -23,10 +24,10 @@ func main() {
 					logger.Info("process failed", "error", err)
 				}
 			}()
-
 			return nil
 		},
 		OnStop: func(_ context.Context) error {
+			time.Sleep(time.Second)
 			logger.Info("stopping process")
 			return nil
 		},
