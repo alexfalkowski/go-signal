@@ -9,6 +9,22 @@ import (
 	"time"
 )
 
+// Go waits for the handler to complete or timeout.
+func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
+	ch := make(chan error, 1)
+
+	go func() {
+		ch <- handler(ctx)
+	}()
+
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(timeout):
+		return nil
+	}
+}
+
 // Handler used for hook.
 type Handler func(context.Context) error
 

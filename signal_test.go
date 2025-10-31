@@ -30,13 +30,15 @@ func TestHTTPServer(t *testing.T) {
 				return err
 			}
 
-			go func() {
+			err = signal.Go(ctx, time.Second, func(context.Context) error {
 				if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					panic(err)
+					return err
 				}
-			}()
 
-			return nil
+				return nil
+			})
+
+			return err
 		},
 		OnStop: func(ctx context.Context) error {
 			return srv.Shutdown(ctx)
@@ -125,6 +127,24 @@ func TestServerStartError(t *testing.T) {
 	lc.Register(&signal.Hook{
 		OnStart: func(context.Context) error {
 			return errTest
+		},
+	})
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = lc.Terminate()
+	}()
+
+	require.Error(t, lc.Server(t.Context()))
+}
+
+func TestServerGoError(t *testing.T) {
+	lc := signal.NewLifeCycle(time.Minute)
+	lc.Register(&signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			return signal.Go(ctx, time.Minute, func(context.Context) error {
+				return errTest
+			})
 		},
 	})
 

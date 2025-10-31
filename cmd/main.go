@@ -8,28 +8,30 @@ import (
 	"github.com/alexfalkowski/go-signal"
 )
 
+var logger = slog.Default()
+
 func process(ctx context.Context) error {
 	<-ctx.Done()
-	return ctx.Err()
+
+	if err := ctx.Err(); err != nil {
+		logger.Info("process failed", "error", err)
+		return err
+	}
+	return nil
 }
 
 func main() {
-	logger := slog.Default()
 	lc := signal.NewLifeCycle(time.Minute)
 	lc.Register(&signal.Hook{
 		OnStart: func(ctx context.Context) error {
-			go func() {
-				logger.Info("starting process")
-				if err := process(ctx); err != nil {
-					logger.Info("process failed", "error", err)
-				}
-			}()
-			return nil
+			logger.Info("starting process")
+
+			return signal.Go(ctx, time.Second, process)
 		},
-		OnStop: func(_ context.Context) error {
+		OnStop: func(ctx context.Context) error {
 			time.Sleep(time.Second)
 			logger.Info("stopping process")
-			return nil
+			return ctx.Err()
 		},
 	})
 
