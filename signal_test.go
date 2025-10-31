@@ -169,6 +169,7 @@ func TestServerStopContextNoError(t *testing.T) {
 }
 
 func TestServerStartContext(t *testing.T) {
+	ch := make(chan bool, 1)
 	lc := signal.NewLifeCycle()
 	lc.Register(&signal.Hook{
 		OnStart: func(ctx context.Context) error {
@@ -178,6 +179,7 @@ func TestServerStartContext(t *testing.T) {
 
 			go func(ctx context.Context) {
 				<-ctx.Done()
+				ch <- true
 			}(ctx)
 
 			return nil
@@ -190,4 +192,5 @@ func TestServerStartContext(t *testing.T) {
 	}()
 
 	require.NoError(t, lc.Server(t.Context()))
+	require.True(t, <-ch)
 }
