@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v0.5.0](https://github.com/alexfalkowski/go-signal/releases/tag/v0.5.0) - 2025-10-31
+
+- [`231a0ba`](https://github.com/alexfalkowski/go-signal/commit/231a0ba43b04369fe50fcd5a958ea386ad542238) feat(lc): remove context with timeout (#22)
+- [`7233e5e`](https://github.com/alexfalkowski/go-signal/commit/7233e5e77c29d12f85a0c4d14caabc05e3e25ad6) test(lc): verify start context (#21)
+- [`361b5e9`](https://github.com/alexfalkowski/go-signal/commit/361b5e9b46653a8f23c1941d6ddbe29fee679d81) test(lc): inline hook (#20)
+
 ## [v0.4.0](https://github.com/alexfalkowski/go-signal/releases/tag/v0.4.0) - 2025-10-30
 
 - [`696f54b`](https://github.com/alexfalkowski/go-signal/commit/696f54b62acdf10434eb5cf2aed44a07799ddb52) feat(lc): server should have a cancel context (#19)
