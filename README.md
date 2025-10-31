@@ -75,3 +75,7 @@ lc.Register(&signal.Hook{
 // Do something with err.
 err := lc.Server(context.Background())
 ```
+
+## Example
+
+Check out the [example](cmd/main.go) for more information.
