@@ -23,7 +23,7 @@ The client will start, run your app and stop. As an example:
 
 ```go
 lc := signal.NewLifeCycle()
-h := &signal.Hook{
+lc.Register(&signal.Hook{
     OnStart: func(context.Context) error {
         // Do something that starts.
         return nil
@@ -32,8 +32,7 @@ h := &signal.Hook{
         // Do something that stops.
         return nil
     },
-}
-lc.Register(h)
+})
 
 // Do something with err.
 err := lc.Client(context.Background(), func(context.Context) error {
@@ -48,7 +47,7 @@ The server will start, and wait for signal and stop. As an example:
 
 ```go
 lc := signal.NewLifeCycle()
-h := &signal.Hook{
+lc.Register(&signal.Hook{
     OnStart: func(context.Context) error {
         // Do something that starts.
         return nil
@@ -57,8 +56,7 @@ h := &signal.Hook{
         // Do something that stops.
         return nil
     },
-}
-lc.Register(h)
+})
 
 // Do something with err.
 err := lc.Server(context.Background())
