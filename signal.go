@@ -2,6 +2,7 @@ package signal
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
@@ -108,11 +109,12 @@ func (l *Lifecycle) start(ctx context.Context) error {
 }
 
 func (l *Lifecycle) stop(ctx context.Context) error {
+	errs := make([]error, 0)
 	for _, hook := range l.hooks {
 		if err := hook.Stop(ctx); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
