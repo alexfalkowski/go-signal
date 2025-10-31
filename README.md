@@ -22,7 +22,14 @@ This library has been inspired by the following articles:
 The client will start, run your app and stop. As an example:
 
 ```go
-lc := signal.NewLifeCycle()
+import (
+	"context"
+	"time"
+
+	"github.com/alexfalkowski/go-signal"
+)
+
+lc := signal.NewLifeCycle(time.Minute)
 lc.Register(&signal.Hook{
     OnStart: func(context.Context) error {
         // Do something that starts.
@@ -46,7 +53,14 @@ err := lc.Client(context.Background(), func(context.Context) error {
 The server will start, and wait for signal and stop. As an example:
 
 ```go
-lc := signal.NewLifeCycle()
+import (
+	"context"
+	"time"
+
+	"github.com/alexfalkowski/go-signal"
+)
+
+lc := signal.NewLifeCycle(time.Minute)
 lc.Register(&signal.Hook{
     OnStart: func(context.Context) error {
         // Do something that starts.
