@@ -78,11 +78,7 @@ func (l *Lifecycle) Client(ctx context.Context, h Handler) error {
 		return err
 	}
 
-	if err := l.stop(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return l.stop(ctx)
 }
 
 // Server will run start, wait for signal and stop.
@@ -100,17 +96,12 @@ func (l *Lifecycle) Server(ctx context.Context) error {
 	stopCtx, cancel := context.WithTimeout(ctx, l.timeout)
 	defer cancel()
 
-	if err := l.stop(stopCtx); err != nil {
-		return err
-	}
-
-	return nil
+	return l.stop(stopCtx)
 }
 
 // Terminate the lifecycle.
 func (l *Lifecycle) Terminate() error {
 	process, _ := os.FindProcess(os.Getpid())
-
 	return process.Signal(os.Interrupt)
 }
 
@@ -120,7 +111,6 @@ func (l *Lifecycle) start(ctx context.Context) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -131,6 +121,5 @@ func (l *Lifecycle) stop(ctx context.Context) error {
 			errs = append(errs, err)
 		}
 	}
-
 	return errors.Join(errs...)
 }
