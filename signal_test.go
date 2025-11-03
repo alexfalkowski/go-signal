@@ -193,16 +193,38 @@ func TestServerStartContext(t *testing.T) {
 	lc := signal.NewLifeCycle(time.Minute)
 	lc.Register(&signal.Hook{
 		OnStart: func(ctx context.Context) error {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-
-			go func(ctx context.Context) {
+			return signal.Go(ctx, time.Second, func(ctx context.Context) error {
 				<-ctx.Done()
 				ch <- true
-			}(ctx)
+				return nil
+			})
+		},
+	})
 
-			return nil
+	go func() {
+		time.Sleep(time.Second)
+		_ = lc.Shutdown()
+	}()
+
+	require.NoError(t, lc.Serve(t.Context()))
+	require.True(t, <-ch)
+}
+
+func TestServerStartLoopContext(t *testing.T) {
+	ch := make(chan bool, 1)
+	lc := signal.NewLifeCycle(time.Minute)
+	lc.Register(&signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			return signal.Go(ctx, time.Second, func(ctx context.Context) error {
+				for {
+					select {
+					case <-ctx.Done():
+						ch <- true
+					default:
+						time.Sleep(time.Millisecond)
+					}
+				}
+			})
 		},
 	})
 
