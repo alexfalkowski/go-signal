@@ -42,7 +42,7 @@ lc.Register(&signal.Hook{
 })
 
 // Do something with err.
-err := lc.Client(context.Background(), func(context.Context) error {
+err := lc.Run(context.Background(), func(context.Context) error {
     // Your own app.
     return nil
 })
@@ -73,7 +73,7 @@ lc.Register(&signal.Hook{
 })
 
 // Do something with err.
-err := lc.Server(context.Background())
+err := lc.Serve(context.Background())
 ```
 
 ## Example

@@ -47,10 +47,10 @@ func TestHTTPServer(t *testing.T) {
 
 	go func() {
 		time.Sleep(time.Second)
-		_ = lc.Terminate()
+		_ = lc.Shutdown()
 	}()
 
-	require.NoError(t, lc.Server(t.Context()))
+	require.NoError(t, lc.Serve(t.Context()))
 }
 
 func TestExec(t *testing.T) {
@@ -61,7 +61,7 @@ func TestExec(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, lc.Client(t.Context(), func(context.Context) error {
+	require.NoError(t, lc.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
 }
@@ -70,7 +70,7 @@ func TestClientEmpty(t *testing.T) {
 	lc := signal.NewLifeCycle(time.Minute)
 	lc.Register(&signal.Hook{})
 
-	require.NoError(t, lc.Client(t.Context(), func(context.Context) error {
+	require.NoError(t, lc.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
 }
@@ -79,7 +79,7 @@ func TestClientError(t *testing.T) {
 	lc := signal.NewLifeCycle(time.Minute)
 	lc.Register(&signal.Hook{})
 
-	require.Error(t, lc.Client(t.Context(), func(context.Context) error {
+	require.Error(t, lc.Run(t.Context(), func(context.Context) error {
 		return errTest
 	}))
 }
@@ -92,7 +92,7 @@ func TestClientStartError(t *testing.T) {
 		},
 	})
 
-	require.Error(t, lc.Client(t.Context(), func(context.Context) error {
+	require.Error(t, lc.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
 }
@@ -105,7 +105,7 @@ func TestClientStopError(t *testing.T) {
 		},
 	})
 
-	require.Error(t, lc.Client(t.Context(), func(context.Context) error {
+	require.Error(t, lc.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
 }
@@ -116,10 +116,10 @@ func TestServerEmpty(t *testing.T) {
 
 	go func() {
 		time.Sleep(time.Second)
-		_ = lc.Terminate()
+		_ = lc.Shutdown()
 	}()
 
-	require.NoError(t, lc.Server(t.Context()))
+	require.NoError(t, lc.Serve(t.Context()))
 }
 
 func TestServerStartError(t *testing.T) {
@@ -132,10 +132,10 @@ func TestServerStartError(t *testing.T) {
 
 	go func() {
 		time.Sleep(time.Second)
-		_ = lc.Terminate()
+		_ = lc.Shutdown()
 	}()
 
-	require.Error(t, lc.Server(t.Context()))
+	require.Error(t, lc.Serve(t.Context()))
 }
 
 func TestServerGoError(t *testing.T) {
@@ -150,10 +150,10 @@ func TestServerGoError(t *testing.T) {
 
 	go func() {
 		time.Sleep(time.Second)
-		_ = lc.Terminate()
+		_ = lc.Shutdown()
 	}()
 
-	require.Error(t, lc.Server(t.Context()))
+	require.Error(t, lc.Serve(t.Context()))
 }
 
 func TestServerStopError(t *testing.T) {
@@ -166,10 +166,10 @@ func TestServerStopError(t *testing.T) {
 
 	go func() {
 		time.Sleep(time.Second)
-		_ = lc.Terminate()
+		_ = lc.Shutdown()
 	}()
 
-	require.Error(t, lc.Server(t.Context()))
+	require.Error(t, lc.Serve(t.Context()))
 }
 
 func TestServerStopContextNoError(t *testing.T) {
@@ -182,10 +182,10 @@ func TestServerStopContextNoError(t *testing.T) {
 
 	go func() {
 		time.Sleep(time.Second)
-		_ = lc.Terminate()
+		_ = lc.Shutdown()
 	}()
 
-	require.NoError(t, lc.Server(t.Context()))
+	require.NoError(t, lc.Serve(t.Context()))
 }
 
 func TestServerStartContext(t *testing.T) {
@@ -208,9 +208,9 @@ func TestServerStartContext(t *testing.T) {
 
 	go func() {
 		time.Sleep(time.Second)
-		_ = lc.Terminate()
+		_ = lc.Shutdown()
 	}()
 
-	require.NoError(t, lc.Server(t.Context()))
+	require.NoError(t, lc.Serve(t.Context()))
 	require.True(t, <-ch)
 }

@@ -68,8 +68,8 @@ func (l *Lifecycle) Register(h *Hook) {
 	l.hooks = append(l.hooks, h)
 }
 
-// Client will start run the handler and stop.
-func (l *Lifecycle) Client(ctx context.Context, h Handler) error {
+// Run will start run the handler and stop.
+func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 	if err := l.start(ctx); err != nil {
 		return err
 	}
@@ -81,8 +81,8 @@ func (l *Lifecycle) Client(ctx context.Context, h Handler) error {
 	return l.stop(ctx)
 }
 
-// Server will run start, wait for signal and stop.
-func (l *Lifecycle) Server(ctx context.Context) error {
+// Serve will run start, wait for signal and stop.
+func (l *Lifecycle) Serve(ctx context.Context) error {
 	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -99,8 +99,8 @@ func (l *Lifecycle) Server(ctx context.Context) error {
 	return l.stop(stopCtx)
 }
 
-// Terminate the lifecycle.
-func (l *Lifecycle) Terminate() error {
+// Shutdown the lifecycle.
+func (l *Lifecycle) Shutdown() error {
 	process, _ := os.FindProcess(os.Getpid())
 	return process.Signal(os.Interrupt)
 }

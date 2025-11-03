@@ -35,7 +35,7 @@ func main() {
 		},
 	})
 
-	if err := lc.Server(context.Background()); err != nil {
+	if err := lc.Serve(context.Background()); err != nil {
 		logger.Info("server failed", "error", err)
 	}
 }
