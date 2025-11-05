@@ -3,6 +3,7 @@ package signal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -10,12 +11,30 @@ import (
 	"time"
 )
 
+// ErrTerminated is returned when we need to terminate the program.
+var ErrTerminated = errors.New("signal: terminated")
+
+// Terminated wraps the given error with ErrTerminated.
+func Terminated(err error) error {
+	return fmt.Errorf("%w: %w", err, ErrTerminated)
+}
+
+// IsTerminated checks if the given error is ErrTerminated.
+func IsTerminated(err error) bool {
+	return errors.Is(err, ErrTerminated)
+}
+
 // Go waits for the handler to complete or timeout.
 func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
 	ch := make(chan error, 1)
 
 	go func() {
-		ch <- handler(ctx)
+		err := handler(ctx)
+		if IsTerminated(err) {
+			_ = Shutdown()
+		}
+
+		ch <- err
 	}()
 
 	select {

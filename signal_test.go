@@ -156,6 +156,20 @@ func TestServerGoError(t *testing.T) {
 	require.Error(t, signal.Serve(t.Context()))
 }
 
+func TestServerGoTerminated(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(&signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			return signal.Go(ctx, time.Second, func(context.Context) error {
+				time.Sleep(2 * time.Second)
+				return signal.Terminated(errTest)
+			})
+		},
+	})
+
+	require.NoError(t, signal.Serve(t.Context()))
+}
+
 func TestServerStopError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(&signal.Hook{
