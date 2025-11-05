@@ -29,8 +29,7 @@ import (
 	"github.com/alexfalkowski/go-signal"
 )
 
-lc := signal.NewLifeCycle(time.Minute)
-lc.Register(&signal.Hook{
+signal.Register(&signal.Hook{
     OnStart: func(context.Context) error {
         // Do something that starts.
         return nil
@@ -42,7 +41,7 @@ lc.Register(&signal.Hook{
 })
 
 // Do something with err.
-err := lc.Run(context.Background(), func(context.Context) error {
+err := signal.Run(context.Background(), func(context.Context) error {
     // Your own app.
     return nil
 })
@@ -60,8 +59,7 @@ import (
 	"github.com/alexfalkowski/go-signal"
 )
 
-lc := signal.NewLifeCycle(time.Minute)
-lc.Register(&signal.Hook{
+signal.Register(&signal.Hook{
     OnStart: func(context.Context) error {
         // Do something that starts.
         return nil
@@ -73,7 +71,7 @@ lc.Register(&signal.Hook{
 })
 
 // Do something with err.
-err := lc.Serve(context.Background())
+err := signal.Serve(context.Background())
 ```
 
 ## Example
