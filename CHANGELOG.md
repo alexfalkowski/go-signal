@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.1.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.1.0) - 2025-11-05
+
+- [`5d2228e`](https://github.com/alexfalkowski/go-signal/commit/5d2228e6745cbfb8f6318608d3432578b0b2107b) feat(lc): add ability to terminate in go func (#37)
+
 ## [v1.0.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.0.0) - 2025-11-05
 
 - [`a3771b9`](https://github.com/alexfalkowski/go-signal/commit/a3771b92d060000b0a51a3af0d2be589b921b6d3) feat(lc): add default (#36)
