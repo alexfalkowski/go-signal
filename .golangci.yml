@@ -6,6 +6,7 @@ linters:
     - exhaustruct
     - funcorder
     - gochecknoglobals
+    - gochecknoinits
     - ireturn
     - mnd
     - nlreturn
