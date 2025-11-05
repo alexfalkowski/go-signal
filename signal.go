@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -50,6 +51,42 @@ func (h *Hook) Stop(ctx context.Context) error {
 	}
 
 	return h.OnStop(ctx)
+}
+
+var defaultLifecycle atomic.Pointer[Lifecycle]
+
+func init() {
+	defaultLifecycle.Store(NewLifeCycle(30 * time.Second))
+}
+
+// Default returns the default [Lifecycle].
+func Default() *Lifecycle {
+	return defaultLifecycle.Load()
+}
+
+// SetDefault makes l the default [Lifecycle].
+func SetDefault(l *Lifecycle) {
+	defaultLifecycle.Store(l)
+}
+
+// Register with the default [Lifecycle].
+func Register(h *Hook) {
+	Default().Register(h)
+}
+
+// Run with the default [Lifecycle].
+func Run(ctx context.Context, h Handler) error {
+	return Default().Run(ctx, h)
+}
+
+// Serve with the default [Lifecycle].
+func Serve(ctx context.Context) error {
+	return Default().Serve(ctx)
+}
+
+// Shutdown with the default [Lifecycle].
+func Shutdown() error {
+	return Default().Shutdown()
 }
 
 // NewLifeCycle handles hooks.

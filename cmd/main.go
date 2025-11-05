@@ -41,8 +41,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	lc := signal.NewLifeCycle(stopDuration)
-	lc.Register(&signal.Hook{
+	signal.SetDefault(signal.NewLifeCycle(stopDuration))
+	signal.Register(&signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			logger.Info("starting process")
 			return signal.Go(ctx, waitDuration, process)
@@ -54,7 +54,7 @@ func main() {
 		},
 	})
 
-	if err := lc.Serve(context.Background()); err != nil {
+	if err := signal.Serve(context.Background()); err != nil {
 		logger.Info("server failed", "error", err)
 	}
 }
