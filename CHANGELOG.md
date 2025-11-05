@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.0.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.0.0) - 2025-11-05
+
+- [`a3771b9`](https://github.com/alexfalkowski/go-signal/commit/a3771b92d060000b0a51a3af0d2be589b921b6d3) feat(lc): add default (#36)
+- [`a9a3f23`](https://github.com/alexfalkowski/go-signal/commit/a9a3f23877d9c56b4ef496c9e193da88476742bb) build(ci): use latest published images (#34)
+- [`44beafb`](https://github.com/alexfalkowski/go-signal/commit/44beafbb36f4d90576c9a09ee06cc900839867bb) test(lc): add flags (#33)
+- [`ed2b7d3`](https://github.com/alexfalkowski/go-signal/commit/ed2b7d3f790713da1e7bf56629a1e0b6b1c9f2f0) test(lc): verify loop (#32)
+
 ## [v0.12.0](https://github.com/alexfalkowski/go-signal/releases/tag/v0.12.0) - 2025-11-03
 
 - [`b9b2479`](https://github.com/alexfalkowski/go-signal/commit/b9b24799a105255e2aadda50c877d6e573682311) feat(lc): rename to serve and run (#31)
