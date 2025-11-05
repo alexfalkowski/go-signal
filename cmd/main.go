@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"log/slog"
 	"os"
 	"time"
@@ -10,13 +9,9 @@ import (
 	"github.com/alexfalkowski/go-signal"
 )
 
-var (
-	stop   = flag.String("stop", "1m", "the stop duration")
-	wait   = flag.String("wait", "1s", "the wait duration")
-	logger = slog.Default()
-)
+var logger = slog.Default()
 
-func process(ctx context.Context) error {
+func start(ctx context.Context) error {
 	<-ctx.Done()
 
 	if err := ctx.Err(); err != nil {
@@ -26,33 +21,39 @@ func process(ctx context.Context) error {
 	return nil
 }
 
+func terminate(_ context.Context) error {
+	time.Sleep(2 * time.Second)
+
+	return signal.Terminated(context.Canceled)
+}
+
 func main() {
-	flag.Parse()
-
-	stopDuration, err := time.ParseDuration(*stop)
-	if err != nil {
-		logger.Error("failed to parse stop duration", "error", err)
-		os.Exit(1)
+	switch os.Args[1] {
+	case "start":
+		signal.Register(&signal.Hook{
+			OnStart: func(ctx context.Context) error {
+				logger.Info("starting process")
+				return signal.Go(ctx, time.Second, start)
+			},
+			OnStop: func(ctx context.Context) error {
+				time.Sleep(time.Second)
+				logger.Info("stopping process")
+				return ctx.Err()
+			},
+		})
+	case "terminate":
+		signal.Register(&signal.Hook{
+			OnStart: func(ctx context.Context) error {
+				logger.Info("starting process")
+				return signal.Go(ctx, time.Second, terminate)
+			},
+			OnStop: func(ctx context.Context) error {
+				time.Sleep(time.Second)
+				logger.Info("stopping process")
+				return ctx.Err()
+			},
+		})
 	}
-
-	waitDuration, err := time.ParseDuration(*wait)
-	if err != nil {
-		logger.Error("failed to parse wait duration", "error", err)
-		os.Exit(1)
-	}
-
-	signal.SetDefault(signal.NewLifeCycle(stopDuration))
-	signal.Register(&signal.Hook{
-		OnStart: func(ctx context.Context) error {
-			logger.Info("starting process")
-			return signal.Go(ctx, waitDuration, process)
-		},
-		OnStop: func(ctx context.Context) error {
-			time.Sleep(waitDuration)
-			logger.Info("stopping process")
-			return ctx.Err()
-		},
-	})
 
 	if err := signal.Serve(context.Background()); err != nil {
 		logger.Info("server failed", "error", err)
