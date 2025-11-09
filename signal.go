@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/alexfalkowski/go-sync"
 )
 
 // ErrTerminated is returned when we need to terminate the program.
@@ -26,23 +28,7 @@ func IsTerminated(err error) bool {
 
 // Go waits for the handler to complete or timeout.
 func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
-	ch := make(chan error, 1)
-
-	go func() {
-		err := handler(ctx)
-		if IsTerminated(err) {
-			_ = Shutdown()
-		}
-
-		ch <- err
-	}()
-
-	select {
-	case err := <-ch:
-		return err
-	case <-time.After(timeout):
-		return nil
-	}
+	return sync.Wait(ctx, timeout, sync.Handler(handler))
 }
 
 // Handler used for hook.
@@ -75,6 +61,13 @@ func (h *Hook) Stop(ctx context.Context) error {
 var defaultLifecycle atomic.Pointer[Lifecycle]
 
 func init() {
+	sync.SetErrorHandler(func(_ context.Context, err error) error {
+		if IsTerminated(err) {
+			_ = Shutdown()
+		}
+
+		return err
+	})
 	defaultLifecycle.Store(NewLifeCycle(30 * time.Second))
 }
 
