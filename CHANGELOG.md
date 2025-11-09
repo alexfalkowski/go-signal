@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.2.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.2.0) - 2025-11-09
+
+- [`306c4fb`](https://github.com/alexfalkowski/go-signal/commit/306c4fb67ae0fa5e9fda2347f518291ce738f5dc) feat(deps): use github.com/alexfalkowski/go-sync v0.7.0 (#41)
+- [`72510f6`](https://github.com/alexfalkowski/go-signal/commit/72510f6a869a0841acee48b67184132375a2afb7) build(deps): bump bin from `5563606` to `ecccdf6` (#40)
+- [`88f497d`](https://github.com/alexfalkowski/go-signal/commit/88f497d546122328de6a61dbe26ecb94269783d0) build(ci): use latest published images (#39)
+- [`2e541a4`](https://github.com/alexfalkowski/go-signal/commit/2e541a4f35fdcee8b4d21b73687af6cc7f96d286) test(lc): handle diff scenarios (#38)
+
 ## [v1.1.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.1.0) - 2025-11-05
 
 - [`5d2228e`](https://github.com/alexfalkowski/go-signal/commit/5d2228e6745cbfb8f6318608d3432578b0b2107b) feat(lc): add ability to terminate in go func (#37)
