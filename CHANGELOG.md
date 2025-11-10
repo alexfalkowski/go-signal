@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.12.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.12.0) - 2025-11-10
+
+- [`bddc4eb`](https://github.com/alexfalkowski/go-signal/commit/bddc4ebe8abaa8c9260cb1712734588d442cee2a) feat(deps): use github.com/alexfalkowski/go-sync v0.15.0 (#51)
+
 ## [v1.11.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.11.0) - 2025-11-10
 
 - [`0cd2f25`](https://github.com/alexfalkowski/go-signal/commit/0cd2f2521897a1be658ca1a078402f8a1aaa926d) feat(hook): remove pointer receiver (#50)
