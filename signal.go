@@ -28,7 +28,7 @@ func IsTerminated(err error) bool {
 
 // Go waits for the handler to complete or timeout.
 func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
-	return sync.Wait(ctx, timeout, sync.Lifecycle{
+	return sync.Wait(ctx, timeout, sync.Hook{
 		OnRun: sync.Handler(handler),
 		OnError: func(_ context.Context, err error) error {
 			if IsTerminated(err) {
