@@ -50,8 +50,8 @@ type Hook struct {
 }
 
 // Start safely runs the OnStart.
-func (h *Hook) Start(ctx context.Context) error {
-	if h == nil || h.OnStart == nil {
+func (h Hook) Start(ctx context.Context) error {
+	if h.OnStart == nil {
 		return nil
 	}
 
@@ -59,8 +59,8 @@ func (h *Hook) Start(ctx context.Context) error {
 }
 
 // Stop safely runs the OnStop.
-func (h *Hook) Stop(ctx context.Context) error {
-	if h == nil || h.OnStop == nil {
+func (h Hook) Stop(ctx context.Context) error {
+	if h.OnStop == nil {
 		return nil
 	}
 
