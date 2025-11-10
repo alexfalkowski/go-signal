@@ -29,7 +29,7 @@ import (
 	"github.com/alexfalkowski/go-signal"
 )
 
-signal.Register(&signal.Hook{
+signal.Register(signal.Hook{
     OnStart: func(context.Context) error {
         // Do something that starts.
         return nil
@@ -59,7 +59,7 @@ import (
 	"github.com/alexfalkowski/go-signal"
 )
 
-signal.Register(&signal.Hook{
+signal.Register(signal.Hook{
     OnStart: func(context.Context) error {
         // Do something that starts.
         return nil
