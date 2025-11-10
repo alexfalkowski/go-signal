@@ -4,3 +4,4 @@ test/reports/*.xml
 test/reports/*.prof
 test/reports/coverage.html
 *.test
+.source-key
