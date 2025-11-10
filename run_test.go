@@ -14,7 +14,7 @@ var errRun = errors.New("signal: run error")
 
 func TestRunEmpty(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{})
+	signal.Register(signal.Hook{})
 
 	require.NoError(t, signal.Run(t.Context(), func(context.Context) error {
 		return nil
@@ -23,7 +23,7 @@ func TestRunEmpty(t *testing.T) {
 
 func TestRunError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{})
+	signal.Register(signal.Hook{})
 
 	require.Error(t, signal.Run(t.Context(), func(context.Context) error {
 		return errRun
@@ -32,7 +32,7 @@ func TestRunError(t *testing.T) {
 
 func TestRunStartError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			return errRun
 		},
@@ -45,7 +45,7 @@ func TestRunStartError(t *testing.T) {
 
 func TestRunStopError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStop: func(context.Context) error {
 			return errRun
 		},

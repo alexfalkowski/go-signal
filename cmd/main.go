@@ -30,7 +30,7 @@ func terminate(_ context.Context) error {
 func main() {
 	switch os.Args[1] {
 	case "start":
-		signal.Register(&signal.Hook{
+		signal.Register(signal.Hook{
 			OnStart: func(ctx context.Context) error {
 				logger.Info("starting process")
 				return signal.Go(ctx, time.Second, start)
@@ -42,7 +42,7 @@ func main() {
 			},
 		})
 	case "terminate":
-		signal.Register(&signal.Hook{
+		signal.Register(signal.Hook{
 			OnStart: func(ctx context.Context) error {
 				logger.Info("starting process")
 				return signal.Go(ctx, time.Second, terminate)

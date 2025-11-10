@@ -19,7 +19,7 @@ func TestHTTPServe(t *testing.T) {
 		ReadHeaderTimeout: time.Minute,
 	}
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			cfg := &net.ListenConfig{}
 
@@ -51,7 +51,7 @@ func TestHTTPServe(t *testing.T) {
 
 func TestCommandRun(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return exec.CommandContext(ctx, "echo", "hello").Run()
 		},

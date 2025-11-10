@@ -14,7 +14,7 @@ var errServe = errors.New("signal: serve error")
 
 func TestServeEmpty(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{})
+	signal.Register(signal.Hook{})
 
 	go func() {
 		time.Sleep(time.Second)
@@ -26,7 +26,7 @@ func TestServeEmpty(t *testing.T) {
 
 func TestServeStartError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			return errServe
 		},
@@ -42,7 +42,7 @@ func TestServeStartError(t *testing.T) {
 
 func TestServeGoError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return signal.Go(ctx, time.Minute, func(context.Context) error {
 				return errServe
@@ -60,7 +60,7 @@ func TestServeGoError(t *testing.T) {
 
 func TestServeGoTerminated(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return signal.Go(ctx, time.Second, func(context.Context) error {
 				time.Sleep(2 * time.Second)
@@ -74,7 +74,7 @@ func TestServeGoTerminated(t *testing.T) {
 
 func TestServeStopError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStop: func(context.Context) error {
 			return errServe
 		},
@@ -90,7 +90,7 @@ func TestServeStopError(t *testing.T) {
 
 func TestServeStopContextNoError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStop: func(ctx context.Context) error {
 			return ctx.Err()
 		},
@@ -107,7 +107,7 @@ func TestServeStopContextNoError(t *testing.T) {
 func TestServeStartContext(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	ch := make(chan bool, 1)
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return signal.Go(ctx, time.Second, func(ctx context.Context) error {
 				<-ctx.Done()
@@ -129,7 +129,7 @@ func TestServeStartContext(t *testing.T) {
 func TestServeStartLoopContext(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	ch := make(chan bool, 1)
-	signal.Register(&signal.Hook{
+	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return signal.Go(ctx, time.Second, func(ctx context.Context) error {
 				for {
