@@ -28,15 +28,16 @@ func IsTerminated(err error) bool {
 
 // Go waits for the handler to complete or timeout.
 func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
-	return sync.WaitWithError(ctx, timeout,
-		sync.Handler(handler),
-		func(_ context.Context, err error) error {
+	return sync.Wait(ctx, timeout, sync.Lifecycle{
+		OnRun: sync.Handler(handler),
+		OnError: func(_ context.Context, err error) error {
 			if IsTerminated(err) {
 				_ = Shutdown()
 			}
 
 			return err
-		})
+		},
+	})
 }
 
 // Handler used for hook.
@@ -83,7 +84,7 @@ func SetDefault(l *Lifecycle) {
 }
 
 // Register with the default [Lifecycle].
-func Register(h *Hook) {
+func Register(h Hook) {
 	Default().Register(h)
 }
 
@@ -104,17 +105,17 @@ func Shutdown() error {
 
 // NewLifeCycle handles hooks.
 func NewLifeCycle(timeout time.Duration) *Lifecycle {
-	return &Lifecycle{hooks: make([]*Hook, 0), timeout: timeout}
+	return &Lifecycle{hooks: make([]Hook, 0), timeout: timeout}
 }
 
 // Lifecycle of hooks.
 type Lifecycle struct {
-	hooks   []*Hook
+	hooks   []Hook
 	timeout time.Duration
 }
 
 // Register a hook.
-func (l *Lifecycle) Register(h *Hook) {
+func (l *Lifecycle) Register(h Hook) {
 	l.hooks = append(l.hooks, h)
 }
 
