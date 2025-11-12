@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.15.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.15.0) - 2025-11-12
+
+- [`56e07c9`](https://github.com/alexfalkowski/go-signal/commit/56e07c97e2fdf7b483c91c477d3f8942624aff83) feat(timer): add stop (#56)
+- [`4dae770`](https://github.com/alexfalkowski/go-signal/commit/4dae77026637d99a06461e3546a3ce4b86c01e0e) test(timer): add example (#55)
+
 ## [v1.14.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.14.0) - 2025-11-12
 
 - [`0411b49`](https://github.com/alexfalkowski/go-signal/commit/0411b4946c64f564433241e0d3403e277954a7f3) feat(timer): add a way to do recurring tasks (#54)
