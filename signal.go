@@ -26,7 +26,7 @@ func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) erro
 		for {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return hook.Stop(ctx)
 			case <-ticker.C:
 				if err := hook.Tick(ctx); err != nil {
 					return err
@@ -66,7 +66,7 @@ func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
 // Handler used for hook.
 type Handler func(context.Context) error
 
-// Hook for a lifecycle.
+// Hook for operations.
 type Hook struct {
 	OnStart Handler
 	OnTick  Handler
