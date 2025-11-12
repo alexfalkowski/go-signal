@@ -152,3 +152,93 @@ func TestServeStartLoopContext(t *testing.T) {
 	require.NoError(t, signal.Serve(t.Context()))
 	require.True(t, <-ch)
 }
+
+func TestTimerWithTick(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
+				OnStart: func(context.Context) error {
+					return nil
+				},
+				OnTick: func(context.Context) error {
+					return nil
+				},
+			})
+		},
+	})
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = signal.Shutdown()
+	}()
+
+	require.NoError(t, signal.Serve(t.Context()))
+}
+
+func TestTimerWithNoTick(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
+				OnStart: func(context.Context) error {
+					return nil
+				},
+			})
+		},
+	})
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = signal.Shutdown()
+	}()
+
+	require.NoError(t, signal.Serve(t.Context()))
+}
+
+func TestTimerStartError(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
+				OnStart: func(context.Context) error {
+					time.Sleep(10 * time.Millisecond)
+					return errServe
+				},
+				OnTick: func(context.Context) error {
+					return nil
+				},
+			})
+		},
+	})
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = signal.Shutdown()
+	}()
+
+	require.NoError(t, signal.Serve(t.Context()))
+}
+
+func TestTimerTickError(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
+				OnStart: func(context.Context) error {
+					return nil
+				},
+				OnTick: func(context.Context) error {
+					return errServe
+				},
+			})
+		},
+	})
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = signal.Shutdown()
+	}()
+
+	require.NoError(t, signal.Serve(t.Context()))
+}

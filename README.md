@@ -17,16 +17,66 @@ This library has been inspired by the following articles:
 - <https://goperf.dev/01-common-patterns/context/>
 - <https://pkg.go.dev/golang.org/x/sync/errgroup>
 
-## Client
+## Go
 
-The client will start, run your app and stop. As an example:
+Go waits for the handler to complete or timeout. As an example:
 
 ```go
 import (
-	"context"
-	"time"
+    "context"
+    "time"
 
-	"github.com/alexfalkowski/go-signal"
+    "github.com/alexfalkowski/go-signal"
+)
+
+signal.Register(signal.Hook{
+    OnStart: func(context.Context) error {
+        return signal.Go(ctx, time.Second, func(context.Context) error {
+            // Do something that starts.
+            return nil
+        })
+    },
+})
+```
+
+## Timer
+
+Timer will call Go with the given timeout which creates a timer to run at an interval.. As an example:
+
+```go
+import (
+    "context"
+    "time"
+
+    "github.com/alexfalkowski/go-signal"
+)
+
+signal.Register(signal.Hook{
+    OnStart: func(ctx context.Context) error {
+        return signal.Timer(ctx, time.Second, time.Second, signal.Hook{
+            OnStart: func(context.Context) error {
+                // Do something that starts.
+                return nil
+            },
+            OnTick: func(context.Context) error {
+                // Do something that ticks.
+                return nil
+            },
+        })
+    },
+})
+```
+
+## Run
+
+Run will start run the handler and stop. As an example:
+
+```go
+import (
+    "context"
+    "time"
+
+    "github.com/alexfalkowski/go-signal"
 )
 
 signal.Register(signal.Hook{
@@ -47,16 +97,16 @@ err := signal.Run(context.Background(), func(context.Context) error {
 })
 ```
 
-## Server
+## Serve
 
-The server will start, and wait for signal and stop. As an example:
+Serve will run start, wait for signal and stop. As an example:
 
 ```go
 import (
-	"context"
-	"time"
+    "context"
+    "time"
 
-	"github.com/alexfalkowski/go-signal"
+    "github.com/alexfalkowski/go-signal"
 )
 
 signal.Register(signal.Hook{
