@@ -62,6 +62,10 @@ signal.Register(signal.Hook{
                 // Do something that ticks.
                 return nil
             },
+            OnStop: func(context.Context) error {
+                // Do something that stops.
+                return nil
+            },
         })
     },
 })

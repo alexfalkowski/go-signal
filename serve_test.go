@@ -205,8 +205,25 @@ func TestTimerStartError(t *testing.T) {
 					time.Sleep(10 * time.Millisecond)
 					return errServe
 				},
-				OnTick: func(context.Context) error {
-					return nil
+			})
+		},
+	})
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = signal.Shutdown()
+	}()
+
+	require.NoError(t, signal.Serve(t.Context()))
+}
+
+func TestTimerTickStopError(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
+				OnStop: func(context.Context) error {
+					return errServe
 				},
 			})
 		},
@@ -225,9 +242,6 @@ func TestTimerTickError(t *testing.T) {
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
-				OnStart: func(context.Context) error {
-					return nil
-				},
 				OnTick: func(context.Context) error {
 					return errServe
 				},
