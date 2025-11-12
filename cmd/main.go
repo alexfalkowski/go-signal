@@ -21,6 +21,11 @@ func start(ctx context.Context) error {
 	return nil
 }
 
+func ticker(context.Context) error {
+	logger.Info("ticking")
+	return nil
+}
+
 func terminate(_ context.Context) error {
 	time.Sleep(2 * time.Second)
 
@@ -34,6 +39,24 @@ func main() {
 			OnStart: func(ctx context.Context) error {
 				logger.Info("starting process")
 				return signal.Go(ctx, time.Second, start)
+			},
+			OnStop: func(ctx context.Context) error {
+				time.Sleep(time.Second)
+				logger.Info("stopping process")
+				return ctx.Err()
+			},
+		})
+	case "timer":
+		signal.Register(signal.Hook{
+			OnStart: func(ctx context.Context) error {
+				logger.Info("starting process")
+				return signal.Timer(ctx, time.Second, time.Second, signal.Hook{
+					OnStart: func(_ context.Context) error {
+						logger.Info("starting timer")
+						return nil
+					},
+					OnTick: ticker,
+				})
 			},
 			OnStop: func(ctx context.Context) error {
 				time.Sleep(time.Second)
