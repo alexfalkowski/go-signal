@@ -13,6 +13,29 @@ import (
 	"github.com/alexfalkowski/go-sync"
 )
 
+// Timer will call Go with the given timeout which creates a timer to run at an interval.
+func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) error {
+	return Go(ctx, timeout, func(ctx context.Context) error {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		if err := hook.Start(ctx); err != nil {
+			return err
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+				if err := hook.Tick(ctx); err != nil {
+					return err
+				}
+			}
+		}
+	})
+}
+
 // ErrTerminated is returned when we need to terminate the program.
 var ErrTerminated = errors.New("signal: terminated")
 
@@ -46,6 +69,7 @@ type Handler func(context.Context) error
 // Hook for a lifecycle.
 type Hook struct {
 	OnStart Handler
+	OnTick  Handler
 	OnStop  Handler
 }
 
@@ -56,6 +80,15 @@ func (h Hook) Start(ctx context.Context) error {
 	}
 
 	return h.OnStart(ctx)
+}
+
+// Tick safely runs the OnTick.
+func (h Hook) Tick(ctx context.Context) error {
+	if h.OnTick == nil {
+		return nil
+	}
+
+	return h.OnTick(ctx)
 }
 
 // Stop safely runs the OnStop.
