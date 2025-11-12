@@ -26,7 +26,10 @@ func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) erro
 		for {
 			select {
 			case <-ctx.Done():
-				return hook.Stop(ctx)
+				stopCtx, cancel := context.WithTimeout(context.Background(), timeout)
+				defer cancel()
+
+				return hook.Stop(stopCtx)
 			case <-ticker.C:
 				if err := hook.Tick(ctx); err != nil {
 					return err
@@ -177,7 +180,7 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 	<-notifyCtx.Done()
 	stop()
 
-	stopCtx, cancel := context.WithTimeout(ctx, l.timeout)
+	stopCtx, cancel := context.WithTimeout(context.Background(), l.timeout)
 	defer cancel()
 
 	return l.stop(stopCtx)
