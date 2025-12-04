@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.16.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.16.0) - 2025-12-04
+
+- [`25068ca`](https://github.com/alexfalkowski/go-signal/commit/25068caf7970cd70dd5fc72474c1227c1973d158) feat(lc): add signal.Ignore (#69)
+- [`6bd9457`](https://github.com/alexfalkowski/go-signal/commit/6bd9457b1b6a23d8947dc50b0a2020441d900386) build(ci): use latest published images (#68)
+- [`f17d820`](https://github.com/alexfalkowski/go-signal/commit/f17d820f1f015b739677985b02e48ee2f52a937c) build(ci): use latest published images (#67)
+- [`d61ceb1`](https://github.com/alexfalkowski/go-signal/commit/d61ceb1584190cc0629cafb0371ea11d13b01805) build(ci): use latest published images (#65)
+- [`a693027`](https://github.com/alexfalkowski/go-signal/commit/a693027a6867d403af659544f10b313e79ebc56c) build(ci): use latest published images (#64)
+- [`9b5dd18`](https://github.com/alexfalkowski/go-signal/commit/9b5dd18bb9b9f56de8e8f0a19f967992783b11a7) build(ci): use latest published images (#63)
+- [`35a2194`](https://github.com/alexfalkowski/go-signal/commit/35a219469ba16881b2a9f48b2dacc255f998be2b) build(ci): use latest published images (#62)
+- [`5ba1421`](https://github.com/alexfalkowski/go-signal/commit/5ba1421f9d51496c79e3920aaa54e051737b1e24) build(deps): upgraded github.com/alexfalkowski/bin (#61)
+- [`e85be25`](https://github.com/alexfalkowski/go-signal/commit/e85be255d5b80b819a4bbde56146994b84b987aa) build(ci): use latest published images (#60)
+- [`de137e2`](https://github.com/alexfalkowski/go-signal/commit/de137e2beb245313e85be5ddb19e379fe1bae1fe) build(ci): use latest published images (#59)
+- [`6258118`](https://github.com/alexfalkowski/go-signal/commit/6258118cfaf862923044d999fc21c0a63c61288d) build(ci): use latest published images (#58)
+
 ## [v1.15.1](https://github.com/alexfalkowski/go-signal/releases/tag/v1.15.1) - 2025-11-12
 
 - [`a53a15d`](https://github.com/alexfalkowski/go-signal/commit/a53a15de8d9753e42b10bc736aed966b03fe815d) fix(timer): add timeout to stop (#57)
