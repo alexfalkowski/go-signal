@@ -128,6 +128,10 @@ signal.Register(signal.Hook{
 err := signal.Serve(context.Background())
 ```
 
+## Dependencies
+
+![Dependencies](./assets/..png)
+
 ## Example
 
 Check out the [example](cmd/main.go) for more information.
