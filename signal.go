@@ -170,10 +170,13 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 
 // Serve will run start, wait for signal and stop.
 func (l *Lifecycle) Serve(ctx context.Context) error {
-	// Ignore signals that were set before, to only capture the ones set after Serve is called.
-	signal.Ignore(os.Interrupt, syscall.SIGTERM)
+	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
 
-	notifyCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	// Reset and ignore signals that were set before, to only capture the ones set after Serve is called.
+	signal.Reset(signals...)
+	signal.Ignore(signals...)
+
+	notifyCtx, stop := signal.NotifyContext(ctx, signals...)
 	defer stop()
 
 	if err := l.start(notifyCtx); err != nil {
