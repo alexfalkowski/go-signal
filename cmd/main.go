@@ -56,6 +56,10 @@ func main() {
 						return nil
 					},
 					OnTick: ticker,
+					OnStop: func(_ context.Context) error {
+						logger.Info("stopping timer")
+						return nil
+					},
 				})
 			},
 			OnStop: func(ctx context.Context) error {
