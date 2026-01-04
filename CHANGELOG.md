@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.18.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.18.0) - 2026-01-04
+
+- [`fbf347f`](https://github.com/alexfalkowski/go-signal/commit/fbf347f3264e82d64e155182203cce5a2fce31af) feat(deps): upgraded github.com/alexfalkowski/go-sync v0.16.0 => v0.17.0 (#88)
+- [`207be96`](https://github.com/alexfalkowski/go-signal/commit/207be96b3951c013fcd41dd544b4974aed500374) build(ci): use latest published images (#87)
+- [`da92985`](https://github.com/alexfalkowski/go-signal/commit/da92985598b1e0325be71b6a652ea1c6c02cf2be) build(ci): use latest published images (#86)
+- [`7550725`](https://github.com/alexfalkowski/go-signal/commit/7550725396b3ac4404fe6bd1963ade9da19de184) build(ci): use latest published images (#85)
+- [`14675c1`](https://github.com/alexfalkowski/go-signal/commit/14675c1689498ece7ff2072ef94fe10f51940b0f) build(deps): upgraded github.com/alexfalkowski/bin (#84)
+- [`e756d74`](https://github.com/alexfalkowski/go-signal/commit/e756d74251f919184ef32a9e0a31357ee5bba61d) build(deps): upgraded github.com/alexfalkowski/bin (#83)
+- [`793ba91`](https://github.com/alexfalkowski/go-signal/commit/793ba918822cd5216f01457d9fd9164e843e7b66) build(ci): use latest published images (#82)
+- [`777f9ee`](https://github.com/alexfalkowski/go-signal/commit/777f9eecc290e1a23614cfde5ced52620186ab83) build(ci): use latest published images (#81)
+- [`70c08e1`](https://github.com/alexfalkowski/go-signal/commit/70c08e15a4ec766f704312727cb5a96301d7bd25) build(deps): upgraded github.com/alexfalkowski/bin (#80)
+- [`bc8bf0b`](https://github.com/alexfalkowski/go-signal/commit/bc8bf0b51681cf2d58745a9a59bf4d4451d33e6d) build(deps): upgraded github.com/alexfalkowski/bin (#79)
+- [`70474ed`](https://github.com/alexfalkowski/go-signal/commit/70474ed59834c58cb7d1d94ad40e61285708926a) build(ci): use latest published images (#78)
+- [`dedea95`](https://github.com/alexfalkowski/go-signal/commit/dedea95e05cde7dd01dc3809061d7e10eca7bd5e) build(deps): upgraded github.com/alexfalkowski/bin (#77)
+- [`b0037a3`](https://github.com/alexfalkowski/go-signal/commit/b0037a36671a6e5caf85b9ec000595d1eb8009dc) build(ci): use latest published images (#76)
+- [`1453fa0`](https://github.com/alexfalkowski/go-signal/commit/1453fa0a18f2e68f533d4736ba7b76eaa15b2423) build(ci): use latest published images (#75)
+- [`4c5839a`](https://github.com/alexfalkowski/go-signal/commit/4c5839ab2f56b4c5cfba17c39f3c05810c1c7681) build(ci): use latest published images (#74)
+- [`820a068`](https://github.com/alexfalkowski/go-signal/commit/820a068cda0a1faf0aca9f86ca161353b7109d09) build(ci): use latest published images (#73)
+
 ## [v1.17.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.17.0) - 2025-12-05
 
 - [`a5c2a66`](https://github.com/alexfalkowski/go-signal/commit/a5c2a666b65c544455434cf55ddf0e41effba7bc) feat(lc): use reset with ignore (#71)
