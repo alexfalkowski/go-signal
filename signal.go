@@ -168,7 +168,11 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 	return l.stop(ctx)
 }
 
-// Serve will run start, wait for signal and stop.
+// Serve runs start hooks, waits for SIGINT/SIGTERM, then runs stop hooks.
+//
+// Note: Serve takes ownership of SIGINT/SIGTERM for the entire process. It resets any
+// prior handlers and ignores these signals before registering its own notification,
+// so other packages’ signal handlers for these signals will not run while Serve is active.
 func (l *Lifecycle) Serve(ctx context.Context) error {
 	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
 
