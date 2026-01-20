@@ -15,7 +15,6 @@ import (
 
 func TestHTTPServe(t *testing.T) {
 	srv := &http.Server{
-		Addr:              ":8080",
 		ReadHeaderTimeout: time.Minute,
 	}
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
@@ -23,7 +22,7 @@ func TestHTTPServe(t *testing.T) {
 		OnStart: func(ctx context.Context) error {
 			cfg := &net.ListenConfig{}
 
-			ln, err := cfg.Listen(ctx, "tcp", srv.Addr)
+			ln, err := cfg.Listen(ctx, "tcp", "127.0.0.1:0")
 			if err != nil {
 				return err
 			}
