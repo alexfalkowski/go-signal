@@ -105,8 +105,9 @@ func TestServeStopContextNoError(t *testing.T) {
 }
 
 func TestServeStartContext(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	ch := make(chan bool, 1)
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return signal.Go(ctx, time.Second, func(ctx context.Context) error {
@@ -127,8 +128,9 @@ func TestServeStartContext(t *testing.T) {
 }
 
 func TestServeStartLoopContext(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	ch := make(chan bool, 1)
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return signal.Go(ctx, time.Second, func(ctx context.Context) error {
