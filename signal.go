@@ -150,7 +150,10 @@ type Lifecycle struct {
 	timeout time.Duration
 }
 
-// Register a hook.
+// Register adds a hook to this lifecycle.
+//
+// Note: Lifecycle is not designed to be used concurrently. Register during setup (typically in
+// main), before calling Run or Serve.
 func (l *Lifecycle) Register(h Hook) {
 	l.hooks = append(l.hooks, h)
 }
