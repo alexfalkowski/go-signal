@@ -14,9 +14,8 @@ import (
 )
 
 func TestHTTPServe(t *testing.T) {
-	srv := &http.Server{
-		ReadHeaderTimeout: time.Minute,
-	}
+	srv := &http.Server{ReadHeaderTimeout: time.Minute}
+
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
