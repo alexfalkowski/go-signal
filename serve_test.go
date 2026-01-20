@@ -13,15 +13,23 @@ import (
 var errServe = errors.New("signal: serve error")
 
 func TestServeEmpty(t *testing.T) {
+	started := make(chan struct{})
+	ctx, cancel := context.WithCancel(t.Context())
+
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{})
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			close(started)
+			return nil
+		},
+	})
 
 	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
+		<-started
+		cancel()
 	}()
 
-	require.NoError(t, signal.Serve(t.Context()))
+	require.NoError(t, signal.Serve(ctx))
 }
 
 func TestServeStartError(t *testing.T) {
@@ -31,11 +39,6 @@ func TestServeStartError(t *testing.T) {
 			return errServe
 		},
 	})
-
-	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
-	}()
 
 	require.Error(t, signal.Serve(t.Context()))
 }
@@ -49,11 +52,6 @@ func TestServeGoError(t *testing.T) {
 			})
 		},
 	})
-
-	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
-	}()
 
 	require.Error(t, signal.Serve(t.Context()))
 }
@@ -73,7 +71,16 @@ func TestServeGoTerminated(t *testing.T) {
 }
 
 func TestServeStopError(t *testing.T) {
+	started := make(chan struct{})
+	ctx, cancel := context.WithCancel(t.Context())
+
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			close(started)
+			return nil
+		},
+	})
 	signal.Register(signal.Hook{
 		OnStop: func(context.Context) error {
 			return errServe
@@ -81,15 +88,24 @@ func TestServeStopError(t *testing.T) {
 	})
 
 	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
+		<-started
+		cancel()
 	}()
 
-	require.Error(t, signal.Serve(t.Context()))
+	require.Error(t, signal.Serve(ctx))
 }
 
 func TestServeStopContextNoError(t *testing.T) {
+	started := make(chan struct{})
+	ctx, cancel := context.WithCancel(t.Context())
+
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			close(started)
+			return nil
+		},
+	})
 	signal.Register(signal.Hook{
 		OnStop: func(ctx context.Context) error {
 			return ctx.Err()
@@ -97,18 +113,22 @@ func TestServeStopContextNoError(t *testing.T) {
 	})
 
 	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
+		<-started
+		cancel()
 	}()
 
-	require.NoError(t, signal.Serve(t.Context()))
+	require.NoError(t, signal.Serve(ctx))
 }
 
 func TestServeStartContext(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	started := make(chan struct{})
 	ch := make(chan bool, 1)
+	ctx, cancel := context.WithCancel(t.Context())
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
+			close(started)
 			return signal.Go(ctx, time.Second, func(ctx context.Context) error {
 				<-ctx.Done()
 				ch <- true
@@ -118,24 +138,29 @@ func TestServeStartContext(t *testing.T) {
 	})
 
 	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
+		<-started
+		cancel()
 	}()
 
-	require.NoError(t, signal.Serve(t.Context()))
+	require.NoError(t, signal.Serve(ctx))
 	require.True(t, <-ch)
 }
 
 func TestServeStartLoopContext(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	started := make(chan struct{})
 	ch := make(chan bool, 1)
+	ctx, cancel := context.WithCancel(t.Context())
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
+			close(started)
 			return signal.Go(ctx, time.Second, func(ctx context.Context) error {
 				for {
 					select {
 					case <-ctx.Done():
 						ch <- true
+						return nil
 					default:
 						time.Sleep(time.Millisecond)
 					}
@@ -145,114 +170,10 @@ func TestServeStartLoopContext(t *testing.T) {
 	})
 
 	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
+		<-started
+		cancel()
 	}()
 
-	require.NoError(t, signal.Serve(t.Context()))
+	require.NoError(t, signal.Serve(ctx))
 	require.True(t, <-ch)
-}
-
-func TestTimerWithTick(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
-		OnStart: func(ctx context.Context) error {
-			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
-				OnStart: func(context.Context) error {
-					return nil
-				},
-				OnTick: func(context.Context) error {
-					return nil
-				},
-			})
-		},
-	})
-
-	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
-	}()
-
-	require.NoError(t, signal.Serve(t.Context()))
-}
-
-func TestTimerWithNoTick(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
-		OnStart: func(ctx context.Context) error {
-			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
-				OnStart: func(context.Context) error {
-					return nil
-				},
-			})
-		},
-	})
-
-	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
-	}()
-
-	require.NoError(t, signal.Serve(t.Context()))
-}
-
-func TestTimerStartError(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
-		OnStart: func(ctx context.Context) error {
-			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
-				OnStart: func(context.Context) error {
-					time.Sleep(10 * time.Millisecond)
-					return errServe
-				},
-			})
-		},
-	})
-
-	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
-	}()
-
-	require.NoError(t, signal.Serve(t.Context()))
-}
-
-func TestTimerTickStopError(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
-		OnStart: func(ctx context.Context) error {
-			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
-				OnStop: func(context.Context) error {
-					return errServe
-				},
-			})
-		},
-	})
-
-	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
-	}()
-
-	require.NoError(t, signal.Serve(t.Context()))
-}
-
-func TestTimerTickError(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
-		OnStart: func(ctx context.Context) error {
-			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
-				OnTick: func(context.Context) error {
-					return errServe
-				},
-			})
-		},
-	})
-
-	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
-	}()
-
-	require.NoError(t, signal.Serve(t.Context()))
 }

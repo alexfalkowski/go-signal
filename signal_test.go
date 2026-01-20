@@ -14,9 +14,10 @@ import (
 )
 
 func TestHTTPServe(t *testing.T) {
-	srv := &http.Server{
-		ReadHeaderTimeout: time.Minute,
-	}
+	srv := &http.Server{ReadHeaderTimeout: time.Minute}
+	started := make(chan struct{})
+	ctx, cancel := context.WithCancel(t.Context())
+
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
@@ -26,6 +27,8 @@ func TestHTTPServe(t *testing.T) {
 			if err != nil {
 				return err
 			}
+
+			close(started)
 
 			return signal.Go(ctx, time.Second, func(context.Context) error {
 				if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -41,11 +44,15 @@ func TestHTTPServe(t *testing.T) {
 	})
 
 	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
+		select {
+		case <-started:
+			cancel()
+		case <-time.After(5 * time.Second):
+			cancel()
+		}
 	}()
 
-	require.NoError(t, signal.Serve(t.Context()))
+	require.NoError(t, signal.Serve(ctx))
 }
 
 func TestCommandRun(t *testing.T) {
