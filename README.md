@@ -7,7 +7,7 @@
 
 # go-signal
 
-A library to handle signal handlers.
+A library for coordinating application start/stop hooks around OS signals.
 
 ## Background
 
@@ -19,7 +19,7 @@ This library has been inspired by the following articles:
 
 ## Go
 
-Go waits for the handler to complete or timeout. As an example:
+Go waits for the handler to complete or for timeout to elapse. As an example:
 
 ```go
 import (
@@ -30,7 +30,7 @@ import (
 )
 
 signal.Register(signal.Hook{
-    OnStart: func(context.Context) error {
+    OnStart: func(ctx context.Context) error {
         return signal.Go(ctx, time.Second, func(context.Context) error {
             // Do something that starts.
             return nil
@@ -41,7 +41,7 @@ signal.Register(signal.Hook{
 
 ## Timer
 
-Timer will call Go with the given timeout which creates a timer to run at an interval.. As an example:
+Timer runs a hook that ticks at an interval until its context is done. As an example:
 
 ```go
 import (
@@ -73,12 +73,11 @@ signal.Register(signal.Hook{
 
 ## Run
 
-Run will start run the handler and stop. As an example:
+Run runs start hooks, then your handler, then stop hooks. As an example:
 
 ```go
 import (
     "context"
-    "time"
 
     "github.com/alexfalkowski/go-signal"
 )
@@ -103,12 +102,11 @@ err := signal.Run(context.Background(), func(context.Context) error {
 
 ## Serve
 
-Serve will run start, wait for signal and stop. As an example:
+Serve runs start hooks, waits for SIGINT/SIGTERM, then runs stop hooks. As an example:
 
 ```go
 import (
     "context"
-    "time"
 
     "github.com/alexfalkowski/go-signal"
 )
