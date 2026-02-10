@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.22.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.22.0) - 2026-02-10
+
+- [`aeff3b6`](https://github.com/alexfalkowski/go-signal/commit/aeff3b614b37143f34f3b56792bfbb8fc9070146) feat(deps): upgraded github.com/alexfalkowski/go-sync v0.21.0 => v1.2.0 (#123)
+- [`782262b`](https://github.com/alexfalkowski/go-signal/commit/782262bba1e535944d563cc3146c7314a6ddcc40) build(deps): bump bin from `50ee2c1` to `dc92464` (#121)
+- [`af700a4`](https://github.com/alexfalkowski/go-signal/commit/af700a4b5b312b073bee32b464b4bb24c5313e1b) build(ci): use latest published images (#120)
+- [`b717997`](https://github.com/alexfalkowski/go-signal/commit/b7179973574ae0d7dc3970ba381f47ec3bf93d40) build(ci): use latest published images (#119)
+- [`5ccde69`](https://github.com/alexfalkowski/go-signal/commit/5ccde69d57ca4a32ae4a254c85cdb4f76e2eedf0) build(ci): use latest published images (#118)
+- [`ba0b6d6`](https://github.com/alexfalkowski/go-signal/commit/ba0b6d6a6679042473b54637436d3fe9cc1b599b) build(ci): use latest published images (#117)
+- [`be22564`](https://github.com/alexfalkowski/go-signal/commit/be22564f8b87fd15fb8e465d1b176e6de61f0056) build(ci): use latest published images (#116)
+- [`31beee6`](https://github.com/alexfalkowski/go-signal/commit/31beee6ad990a10e3388b6743a29b8ee57511ff1) build(ci): use latest published images (#115)
+- [`23b5a3f`](https://github.com/alexfalkowski/go-signal/commit/23b5a3f05a01effd3313eb99b65d61526da6e8a5) build(ci): update AGENTS (#114)
+- [`0a8b7d6`](https://github.com/alexfalkowski/go-signal/commit/0a8b7d6874ec219885e25ed2ba4a701eb4b6845c) test(signal): move var (#113)
+- [`fc5dc17`](https://github.com/alexfalkowski/go-signal/commit/fc5dc17cde341d9a89e8d3acb48bfe2f434e6480) docs(signal): add comment to clarify Register (#111)
+- [`84357ce`](https://github.com/alexfalkowski/go-signal/commit/84357ce9b61d0853846d84bdad8a61a2af333ba9) docs(signal): add explanation for Serve (#110)
+- [`5faeece`](https://github.com/alexfalkowski/go-signal/commit/5faeece158db4629d1c0b179df556cf1003537e6) test(signal): do not hardcode the port (#109)
+- [`7d3a9c3`](https://github.com/alexfalkowski/go-signal/commit/7d3a9c384aa93d032311d7b46171829cfeb35da8) build(ci): add AGENTS.md (#108)
+- [`77795a4`](https://github.com/alexfalkowski/go-signal/commit/77795a4b6d7db7890147ffd93e79366bb0130ed5) build(ci): use latest published images (#107)
+- [`4932e6d`](https://github.com/alexfalkowski/go-signal/commit/4932e6df65a0608d42ddb8577d1e566f83eece30) build(ci): use latest published images (#106)
+- [`695b9ce`](https://github.com/alexfalkowski/go-signal/commit/695b9ce9a47010c1d219082cadda0470170e97bc) build(deps): upgraded github.com/alexfalkowski/bin (#105)
+- [`c23345b`](https://github.com/alexfalkowski/go-signal/commit/c23345bffe00b067d2bbd9088fd99089df5868e2) build(license): move to mit (#103)
+- [`7a0daea`](https://github.com/alexfalkowski/go-signal/commit/7a0daeae8c85480434ce6453b3d0ac84e7c7c423) build(ci): use latest published images (#102)
+- [`e313fc0`](https://github.com/alexfalkowski/go-signal/commit/e313fc0ef8cd95f38c05f049377fa3d2416b81f4) build(ci): use latest published images (#101)
+- [`97b7199`](https://github.com/alexfalkowski/go-signal/commit/97b7199744ab91a8cd9e480930a13ac251c66974) build(ci): use latest published images (#100)
+- [`7a1de28`](https://github.com/alexfalkowski/go-signal/commit/7a1de28ec28dab9ede73c81a6079a170f5317d9b) build(ci): use latest published images (#99)
+- [`38bcdec`](https://github.com/alexfalkowski/go-signal/commit/38bcdec94c50d67765816a0b75ca4b0f278470ab) build(deps): upgraded github.com/alexfalkowski/bin (#98)
+- [`f3a2fd4`](https://github.com/alexfalkowski/go-signal/commit/f3a2fd412bbf2bcb313780de6b99b4ef3a41d1e4) build(ci): use latest published images (#97)
+- [`0ae2483`](https://github.com/alexfalkowski/go-signal/commit/0ae24838608090547b6dc2d3c003e8871500644d) build(ci): use latest published images (#96)
+
 ## [v1.21.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.21.0) - 2026-01-09
 
 - [`9de3206`](https://github.com/alexfalkowski/go-signal/commit/9de3206db6e331ab401223d65f99bf16b35b9b0b) feat(deps): upgraded github.com/alexfalkowski/go-sync v0.20.0 => v0.21.0 (#95)
