@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.27.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.27.0) - 2026-02-12
+
+- [`1c8bae8`](https://github.com/alexfalkowski/go-signal/commit/1c8bae896a8fd0687a50120d85770895d1be0a7b) feat(go): use go v1.26 (#132)
+- [`4fffa34`](https://github.com/alexfalkowski/go-signal/commit/4fffa34f714e33f7c4bdd83775cf273cc690cc29) build(deps): bump bin from `dc92464` to `60f3a4b` (#129)
+- [`6e40b9e`](https://github.com/alexfalkowski/go-signal/commit/6e40b9e94cf6fb718c9835a4b673133e61324c48) build(ci): use arm.large (#131)
+- [`f1da477`](https://github.com/alexfalkowski/go-signal/commit/f1da47704ea3b69932cd733d3f6357fbf7d1e6ab) build(ci): use latest published images (#130)
+- [`6a51b9d`](https://github.com/alexfalkowski/go-signal/commit/6a51b9dcc6cf052507166d706d36778399c0506d) build(ci): use latest published images (#128)
+
 ## [v1.26.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.26.0) - 2026-02-11
 
 - [`86d31b8`](https://github.com/alexfalkowski/go-signal/commit/86d31b85f6e120997d8e74949da871b8de13a499) feat(deps): update github.com/alexfalkowski/go-sync to v1.6.0 (#127)
