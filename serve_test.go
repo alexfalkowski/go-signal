@@ -258,3 +258,13 @@ func TestTimerTickError(t *testing.T) {
 
 	require.NoError(t, signal.Serve(t.Context()))
 }
+
+func TestTimerZeroInterval(t *testing.T) {
+	err := signal.Timer(t.Context(), time.Second, 0, signal.Hook{})
+	require.ErrorIs(t, err, signal.ErrInvalidInterval)
+}
+
+func TestTimerNegativeInterval(t *testing.T) {
+	err := signal.Timer(t.Context(), time.Second, -time.Second, signal.Hook{})
+	require.ErrorIs(t, err, signal.ErrInvalidInterval)
+}
