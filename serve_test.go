@@ -40,6 +40,47 @@ func TestServeStartError(t *testing.T) {
 	require.Error(t, signal.Serve(t.Context()))
 }
 
+func TestServeStartErrorStopsStartedHooksInReverseOrder(t *testing.T) {
+	order := make([]string, 0, 5)
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			order = append(order, "start-1")
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			order = append(order, "stop-1")
+			return nil
+		},
+	})
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			order = append(order, "start-2")
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			order = append(order, "stop-2")
+			return nil
+		},
+	})
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			order = append(order, "start-3")
+			return errServe
+		},
+		OnStop: func(context.Context) error {
+			order = append(order, "stop-3")
+			return nil
+		},
+	})
+
+	err := signal.Serve(t.Context())
+
+	require.ErrorIs(t, err, errServe)
+	require.Equal(t, []string{"start-1", "start-2", "start-3", "stop-2", "stop-1"}, order)
+}
+
 func TestServeGoError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{

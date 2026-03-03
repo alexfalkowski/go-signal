@@ -131,6 +131,10 @@ func Default() *Lifecycle {
 
 // SetDefault makes l the default [Lifecycle].
 func SetDefault(l *Lifecycle) {
+	if l == nil {
+		panic("signal: lifecycle must not be nil")
+	}
+
 	defaultLifecycle.Store(l)
 }
 
@@ -177,8 +181,9 @@ func (l *Lifecycle) Register(h Hook) {
 
 // Run runs start hooks, then h, then stop hooks.
 func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
-	if err := l.start(ctx); err != nil {
-		return err
+	started, err := l.start(ctx)
+	if err != nil {
+		return errors.Join(err, l.stopStarted(ctx, started))
 	}
 
 	if err := h(ctx); err != nil {
@@ -203,8 +208,12 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 	notifyCtx, stop := signal.NotifyContext(ctx, signals...)
 	defer stop()
 
-	if err := l.start(notifyCtx); err != nil {
-		return err
+	started, err := l.start(notifyCtx)
+	if err != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), l.timeout)
+		defer cancel()
+
+		return errors.Join(err, l.stopStarted(stopCtx, started))
 	}
 
 	<-notifyCtx.Done()
@@ -224,13 +233,14 @@ func (l *Lifecycle) Shutdown() error {
 	return process.Signal(os.Interrupt)
 }
 
-func (l *Lifecycle) start(ctx context.Context) error {
-	for _, hook := range l.hooks {
+func (l *Lifecycle) start(ctx context.Context) (int, error) {
+	for i, hook := range l.hooks {
 		if err := hook.Start(ctx); err != nil {
-			return err
+			return i, err
 		}
 	}
-	return nil
+
+	return len(l.hooks), nil
 }
 
 func (l *Lifecycle) stop(ctx context.Context) error {
@@ -240,5 +250,16 @@ func (l *Lifecycle) stop(ctx context.Context) error {
 			errs = append(errs, err)
 		}
 	}
+	return errors.Join(errs...)
+}
+
+func (l *Lifecycle) stopStarted(ctx context.Context, n int) error {
+	errs := make([]error, 0)
+	for i := n - 1; i >= 0; i-- {
+		if err := l.hooks[i].Stop(ctx); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return errors.Join(errs...)
 }
