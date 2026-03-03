@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.30.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.30.0) - 2026-03-03
+
+- [`839a39d`](https://github.com/alexfalkowski/go-signal/commit/839a39dd394122b6368ab397bf4f16269bff5103) feat(deps): upgrade github.com/alexfalkowski/go-sync to v1.15.0 (#147)
+- [`1262b71`](https://github.com/alexfalkowski/go-signal/commit/1262b710c6f32d2f4e87dfb6d2904a264ee8e0d5) build(ci): use latest published images (#146)
+- [`0788b38`](https://github.com/alexfalkowski/go-signal/commit/0788b38c395031d015476a340efa206691ed0151) build(ci): use latest published images (#145)
+- [`8d5db23`](https://github.com/alexfalkowski/go-signal/commit/8d5db2369ae1006c8a3bf677bc6d7ea60f8a218a) build(ci): use latest published images (#144)
+- [`1f7f3e6`](https://github.com/alexfalkowski/go-signal/commit/1f7f3e658ed74b8c81e7aeb1e53275237244f66e) build(ci): use latest published images (#143)
+- [`1c5b2b9`](https://github.com/alexfalkowski/go-signal/commit/1c5b2b952dcf8518057dde99ed31d03be5e9ee27) build(ci): use latest published images (#142)
+- [`58e30e7`](https://github.com/alexfalkowski/go-signal/commit/58e30e7a5d3bf4e6e308325f5d1da26b47a4a315) build(deps): upgraded github.com/alexfalkowski/bin (#141)
+- [`42a73b2`](https://github.com/alexfalkowski/go-signal/commit/42a73b20d0295e65aaf2437c783742580cdd9204) build(deps): upgraded github.com/alexfalkowski/bin (#140)
+- [`494156f`](https://github.com/alexfalkowski/go-signal/commit/494156fbf8183a1b7b5a650c70e8cde6d8fa1957) build(ci): use latest published images (#138)
+- [`1954e1e`](https://github.com/alexfalkowski/go-signal/commit/1954e1e14e6d744bd9459bac15d65d3260007353) build(ci): use latest published images (#137)
+
 ## [v1.29.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.29.0) - 2026-02-16
 
 - [`e45df03`](https://github.com/alexfalkowski/go-signal/commit/e45df03a16083854d2f044b75e2f822d55cb9e41) feat(deps): upgraded github.com/alexfalkowski/go-sync to v1.9.0 (#136)
