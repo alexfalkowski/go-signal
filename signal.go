@@ -20,6 +20,10 @@ import (
 //
 // The interval must be greater than zero.
 func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) error {
+	if interval <= 0 {
+		return fmt.Errorf("%w: %s", ErrInvalidInterval, interval)
+	}
+
 	return Go(ctx, timeout, func(ctx context.Context) error {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
@@ -43,6 +47,9 @@ func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) erro
 		}
 	})
 }
+
+// ErrInvalidInterval marks an invalid interval passed to [Timer].
+var ErrInvalidInterval = errors.New("signal: invalid interval")
 
 // ErrTerminated marks an error as requesting shutdown.
 var ErrTerminated = errors.New("signal: terminated")
