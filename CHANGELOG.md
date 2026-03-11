@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+## [v1.33.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.33.0) - 2026-03-12
+
+- [`6f05423`](https://github.com/alexfalkowski/go-signal/commit/6f05423be63420415538e9b6ab369b23c4737f82) feat(deps): bump github.com/alexfalkowski/go-sync from 1.16.0 to 1.16.1 (#165)
+- [`2816937`](https://github.com/alexfalkowski/go-signal/commit/28169374ab8f78bc24bef19cbafbc2cb4241fdc1) build(deps): bump bin from `616640e` to `a7996aa` (#164)
+- [`78dcda6`](https://github.com/alexfalkowski/go-signal/commit/78dcda62b053778f11a6e267c0ae76540ae9002a) build(ci): use feat (#163)
+- [`8dd56ef`](https://github.com/alexfalkowski/go-signal/commit/8dd56efd375d2f92a781a827cd4fded2252a460c) build(ci): use alexfalkowski/release:5.58 (#162)
+- [`4b48295`](https://github.com/alexfalkowski/go-signal/commit/4b48295402f7e150156550e16ee43bdce3588783) build(deps): bump bin from `59b1ab0` to `616640e` (#161)
+- [`ea7389d`](https://github.com/alexfalkowski/go-signal/commit/ea7389d7492b0d9222556dbb7a52ec43d9f3360a) build(ci): use latest published images (#160)
+- [`f5c99d4`](https://github.com/alexfalkowski/go-signal/commit/f5c99d4e3d125b9e7242212c979ca518af831627) build(ci): add wait-all (#159)
+- [`19c1f5f`](https://github.com/alexfalkowski/go-signal/commit/19c1f5f9f0cf4629ad8010b99061faf9820c6b17) build(ci): use latest published images (#158)
+- [`5892871`](https://github.com/alexfalkowski/go-signal/commit/5892871475038f8fdb12a83d5bcddd95727f31bf) build(ci): use latest published images (#157)
+- [`f7926e4`](https://github.com/alexfalkowski/go-signal/commit/f7926e475089147490bb544ecff3176d1bf1a4ad) build(ci): use latest published images (#156)
+- [`4aaa78e`](https://github.com/alexfalkowski/go-signal/commit/4aaa78ea7942510ad08ca83fa42e16c969a3be97) build(ci): use latest published images (#155)
+- [`aece749`](https://github.com/alexfalkowski/go-signal/commit/aece7490472ec4720f5a4313e479e76513e39109) build(deps): bump bin from `000304e` to `59b1ab0` (#154)
+- [`817eab6`](https://github.com/alexfalkowski/go-signal/commit/817eab62c9d624ef9001651d3f9e50f0774424c7) build(ci): use latest published images (#153)
+- [`1ea9c52`](https://github.com/alexfalkowski/go-signal/commit/1ea9c52a5231fa092ac95517f92333fc75304f48) build(deps): upgraded github.com/alexfalkowski/bin (#152)
+- [`08ef9af`](https://github.com/alexfalkowski/go-signal/commit/08ef9af762e3cca5fb2b13eead05c109390f1325) build(ci): use latest published images (#151)
+
 ## [v1.32.0](https://github.com/alexfalkowski/go-signal/releases/tag/v1.32.0) - 2026-03-04
 
 - [`84dbf41`](https://github.com/alexfalkowski/go-signal/commit/84dbf41ad8fcfc8a79fab643190d27b57e0c2548) feat(deps): update github.com/alexfalkowski/go-sync to v1.16.0 (#150)
