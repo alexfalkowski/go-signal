@@ -7,73 +7,51 @@
 
 # go-signal
 
-A library for coordinating application start/stop hooks around OS signals.
+A small Go library for coordinating application startup and shutdown hooks
+around OS signals.
 
-## Background
+The package centers on a `Lifecycle` that runs hooks in three phases:
 
-This library has been inspired by the following articles:
+- start: call each registered `OnStart`
+- run: execute your handler with `Run` or wait for shutdown with `Serve`
+- stop: call each registered `OnStop`
 
-- <https://gobyexample.com/signals>
-- <https://goperf.dev/01-common-patterns/context/>
-- <https://pkg.go.dev/golang.org/x/sync/errgroup>
+The package-level helpers operate on a process-wide default lifecycle initialized
+with a 30 second stop timeout.
 
-## Go
+## Install
 
-Go waits for the handler to complete or for timeout to elapse. As an example:
+```sh
+go get github.com/alexfalkowski/go-signal
+```
+
+## Core API
+
+### Register
+
+Use `Register` during application setup to add hooks to the default lifecycle.
+Hook callbacks are optional, and nil callbacks are treated as no-ops.
 
 ```go
-import (
-    "context"
-    "time"
-
-    "github.com/alexfalkowski/go-signal"
-)
-
 signal.Register(signal.Hook{
-    OnStart: func(ctx context.Context) error {
-        return signal.Go(ctx, time.Second, func(context.Context) error {
-            // Do something that starts.
-            return nil
-        })
+    OnStart: func(context.Context) error {
+        // Acquire resources.
+        return nil
+    },
+    OnStop: func(context.Context) error {
+        // Release resources.
+        return nil
     },
 })
 ```
 
-## Timer
+### Run
 
-Timer runs a hook that ticks at an interval until its context is done. As an example:
+`Run` executes all start hooks, then your handler, then all stop hooks.
 
-```go
-import (
-    "context"
-    "time"
-
-    "github.com/alexfalkowski/go-signal"
-)
-
-signal.Register(signal.Hook{
-    OnStart: func(ctx context.Context) error {
-        return signal.Timer(ctx, time.Second, time.Second, signal.Hook{
-            OnStart: func(context.Context) error {
-                // Do something that starts.
-                return nil
-            },
-            OnTick: func(context.Context) error {
-                // Do something that ticks.
-                return nil
-            },
-            OnStop: func(context.Context) error {
-                // Do something that stops.
-                return nil
-            },
-        })
-    },
-})
-```
-
-## Run
-
-Run runs start hooks, then your handler, then stop hooks. As an example:
+- If a start hook fails, `Run` returns immediately.
+- If your handler fails, `Run` returns that error and does not run stop hooks.
+- Stop-hook errors are combined with `errors.Join`.
 
 ```go
 import (
@@ -84,48 +62,166 @@ import (
 
 signal.Register(signal.Hook{
     OnStart: func(context.Context) error {
-        // Do something that starts.
+        // Start dependencies.
         return nil
     },
     OnStop: func(context.Context) error {
-        // Do something that stops.
+        // Stop dependencies.
         return nil
     },
 })
 
-// Do something with err.
 err := signal.Run(context.Background(), func(context.Context) error {
-    // Your own app.
+    // Run application code.
     return nil
 })
 ```
 
-## Serve
+### Serve
 
-Serve runs start hooks, waits for SIGINT/SIGTERM, then runs stop hooks. As an example:
+`Serve` is the long-running variant for processes that should stay alive until
+shutdown is requested.
+
+- It runs start hooks first.
+- It waits for `SIGINT` or `SIGTERM`, or for the parent context to be canceled.
+- It then runs stop hooks with a fresh background context bounded by the
+  lifecycle timeout.
+
+While `Serve` is active it takes ownership of `SIGINT` and `SIGTERM`, so other
+signal handlers for those signals will not run during that time.
 
 ```go
 import (
     "context"
+    "errors"
+    "net"
+    "net/http"
+    "time"
+
+    "github.com/alexfalkowski/go-signal"
+)
+
+srv := &http.Server{ReadHeaderTimeout: time.Minute}
+
+signal.Register(signal.Hook{
+    OnStart: func(ctx context.Context) error {
+        ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:8080")
+        if err != nil {
+            return err
+        }
+
+        return signal.Go(ctx, time.Second, func(context.Context) error {
+            if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+                return err
+            }
+
+            return nil
+        })
+    },
+    OnStop: func(ctx context.Context) error {
+        return srv.Shutdown(ctx)
+    },
+})
+
+err := signal.Serve(context.Background())
+```
+
+### Shutdown
+
+`Shutdown` sends `os.Interrupt` to the current process through the default
+lifecycle. It is mainly useful for programmatic shutdown, such as from tests or
+from a background goroutine that wants to stop a running `Serve` loop.
+
+## Background helpers
+
+### Go
+
+`Go` runs a handler with a timeout-aware wait. It is useful for long-running
+background work that should share a lifecycle context.
+
+If the handler returns an error marked with `signal.Terminated(err)`, `Go`
+triggers `Shutdown()` before returning the error. That gives background work a
+way to request that `Serve` stop.
+
+```go
+import (
+    "context"
+    "time"
+
+    "github.com/alexfalkowski/go-signal"
+)
+
+err := signal.Go(context.Background(), 5*time.Second, func(context.Context) error {
+    // Run background work.
+    return nil
+})
+```
+
+### Timer
+
+`Timer` is a convenience helper for periodic work:
+
+- call `hook.OnStart` once
+- call `hook.OnTick` on each interval
+- when the parent context is canceled, call `hook.OnStop` with a fresh
+  background context bounded by the supplied timeout
+
+The interval must be greater than zero or `Timer` returns `ErrInvalidInterval`.
+
+```go
+import (
+    "context"
+    "time"
 
     "github.com/alexfalkowski/go-signal"
 )
 
 signal.Register(signal.Hook{
-    OnStart: func(context.Context) error {
-        // Do something that starts.
-        return nil
-    },
-    OnStop: func(context.Context) error {
-        // Do something that stops.
-        return nil
+    OnStart: func(ctx context.Context) error {
+        return signal.Timer(ctx, 5*time.Second, time.Minute, signal.Hook{
+            OnStart: func(context.Context) error {
+                // Initialize the periodic worker.
+                return nil
+            },
+            OnTick: func(context.Context) error {
+                // Perform one scheduled iteration.
+                return nil
+            },
+            OnStop: func(context.Context) error {
+                // Flush or clean up.
+                return nil
+            },
+        })
     },
 })
+```
 
-// Do something with err.
-err := signal.Serve(context.Background())
+## Custom lifecycle
+
+Use `NewLifeCycle` when you do not want to rely on the package-level default
+lifecycle.
+
+```go
+import (
+    "context"
+    "time"
+
+    "github.com/alexfalkowski/go-signal"
+)
+
+lc := signal.NewLifeCycle(10 * time.Second)
+
+lc.Register(signal.Hook{
+    OnStart: func(context.Context) error { return nil },
+    OnStop:  func(context.Context) error { return nil },
+})
+
+err := lc.Run(context.Background(), func(context.Context) error {
+    return nil
+})
 ```
 
 ## Example
 
-Check out the [example](cmd/main.go) for more information.
+See [cmd/main.go](cmd/main.go) for a runnable example covering `Serve`, `Go`,
+`Timer`, and termination-triggered shutdown.
