@@ -1,14 +1,3 @@
-// Package signal provides a small lifecycle for coordinating application
-// startup and shutdown work around process signals.
-//
-// A [Lifecycle] runs registered hooks in three phases:
-//
-//   - start, by calling each hook's [Hook.OnStart]
-//   - run, by executing user code through [Run] or waiting for shutdown through [Serve]
-//   - stop, by calling each hook's [Hook.OnStop]
-//
-// The package-level helpers operate on a process-wide default lifecycle that is
-// initialized with a 30-second stop timeout.
 package signal
 
 import (
@@ -220,32 +209,32 @@ func (l *Lifecycle) Register(h Hook) {
 
 // Run executes the lifecycle against ctx.
 //
-// Run calls each registered start hook in registration order. If all start hooks
-// succeed, it calls h. If h also succeeds, Run then calls each registered stop
-// hook with the same ctx.
+// Run calls each registered start hook in registration order. If any start hook
+// fails, Run still attempts the remaining start hooks, then rolls back by
+// calling stop hooks for the hooks that started successfully using the same ctx.
+// If startup succeeds, it calls h, then calls each registered stop hook with
+// the same ctx.
 //
-// Run stops immediately on the first start-hook error or on h returning an
-// error. Stop hooks are only run after h returns nil. Stop-hook errors are
-// combined with [errors.Join].
+// Startup, handler, and stop-hook errors are combined with [errors.Join].
 func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
-	if err := l.start(ctx); err != nil {
-		return err
+	started, err := l.start(ctx)
+	if err != nil {
+		return errors.Join(err, l.stop(ctx, started))
 	}
 
-	if err := h(ctx); err != nil {
-		return err
-	}
-
-	return l.stop(ctx)
+	return errors.Join(h(ctx), l.stop(ctx, l.hooks))
 }
 
 // Serve runs the lifecycle until shutdown is requested.
 //
 // Serve resets any existing SIGINT and SIGTERM handlers, registers its own
-// notification context, runs all start hooks with that context, then blocks until
-// the notification context is done. Shutdown can happen because the parent ctx is
-// cancelled, because the process receives SIGINT or SIGTERM, or because
-// [Shutdown] delivers an interrupt to the current process.
+// notification context, runs all start hooks with that context, then blocks
+// until the notification context is done. If startup fails, Serve still
+// attempts the remaining start hooks, then rolls back successfully started hooks
+// with a fresh background context bounded by the lifecycle timeout. Shutdown can
+// happen because the parent ctx is cancelled, because the process receives
+// SIGINT or SIGTERM, or because [Shutdown] delivers an interrupt to the current
+// process.
 //
 // After shutdown is requested, Serve runs stop hooks with a fresh background
 // context bounded by the lifecycle timeout configured by [NewLifeCycle].
@@ -262,8 +251,12 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 	notifyCtx, stop := signal.NotifyContext(ctx, signals...)
 	defer stop()
 
-	if err := l.start(notifyCtx); err != nil {
-		return err
+	started, err := l.start(notifyCtx)
+	if err != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), l.timeout)
+		defer cancel()
+
+		return errors.Join(err, l.stop(stopCtx, started))
 	}
 
 	<-notifyCtx.Done()
@@ -272,7 +265,7 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 	stopCtx, cancel := context.WithTimeout(context.Background(), l.timeout)
 	defer cancel()
 
-	return l.stop(stopCtx)
+	return l.stop(stopCtx, l.hooks)
 }
 
 // Shutdown sends an [os.Interrupt] signal to the current process.
@@ -284,18 +277,25 @@ func (l *Lifecycle) Shutdown() error {
 	return process.Signal(os.Interrupt)
 }
 
-func (l *Lifecycle) start(ctx context.Context) error {
+func (l *Lifecycle) start(ctx context.Context) ([]Hook, error) {
+	started := make([]Hook, 0, len(l.hooks))
+	errs := make([]error, 0)
+
 	for _, hook := range l.hooks {
 		if err := hook.Start(ctx); err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+
+		started = append(started, hook)
 	}
-	return nil
+
+	return started, errors.Join(errs...)
 }
 
-func (l *Lifecycle) stop(ctx context.Context) error {
+func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
 	errs := make([]error, 0)
-	for _, hook := range l.hooks {
+	for _, hook := range hooks {
 		if err := hook.Stop(ctx); err != nil {
 			errs = append(errs, err)
 		}
