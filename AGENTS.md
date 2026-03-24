@@ -20,6 +20,7 @@ Primary public API lives in `signal.go`:
 ## Layout
 
 - `signal.go`: library implementation
+- `internal/test/`: shared test helpers for startup rollback scenarios
 - `cmd/main.go`: runnable example used by `make run`
 - `run_test.go`: tests for `Run`
 - `serve_test.go`: tests for `Serve` and `Timer`
@@ -125,14 +126,17 @@ stored under `test/reports/`.
 ### Run semantics
 
 - `Lifecycle.Run` runs start hooks in registration order
+- it attempts all start hooks and collects startup errors with `errors.Join`
+- if startup fails, it rolls back by running stop hooks only for successfully started hooks using the caller context
 - if all start hooks succeed, it runs the supplied handler
-- stop hooks run only if the handler returns `nil`
-- start stops on the first error
+- after successful startup, stop hooks run even if the handler returns an error
 - stop collects all hook errors with `errors.Join`
 
 ### Serve semantics
 
 - `Lifecycle.Serve` resets and ignores existing `SIGINT` and `SIGTERM` handlers
+- it attempts all start hooks and collects startup errors with `errors.Join`
+- if startup fails, it rolls back successfully started hooks with a fresh background context bounded by the lifecycle timeout and returns without entering the wait loop
 - it creates a `signal.NotifyContext` and blocks until shutdown is requested
 - shutdown can come from parent context cancellation, an OS signal, or `signal.Shutdown()`
 - stop hooks run with a fresh background context bounded by the lifecycle timeout

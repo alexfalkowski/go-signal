@@ -49,9 +49,11 @@ signal.Register(signal.Hook{
 
 `Run` executes all start hooks, then your handler, then all stop hooks.
 
-- If a start hook fails, `Run` returns immediately.
-- If your handler fails, `Run` returns that error and does not run stop hooks.
-- Stop-hook errors are combined with `errors.Join`.
+- `Run` attempts every start hook, even if an earlier one fails.
+- If startup fails, `Run` rolls back by calling stop hooks for the hooks that
+  started successfully.
+- After successful startup, `Run` always runs stop hooks, even if the handler fails.
+- Startup, handler, and stop-hook errors are combined with `errors.Join`.
 
 ```go
 import (
@@ -83,6 +85,8 @@ err := signal.Run(context.Background(), func(context.Context) error {
 shutdown is requested.
 
 - It runs start hooks first.
+- If startup fails, it still attempts the remaining start hooks and then rolls
+  back successfully started hooks.
 - It waits for `SIGINT` or `SIGTERM`, or for the parent context to be canceled.
 - It then runs stop hooks with a fresh background context bounded by the
   lifecycle timeout.

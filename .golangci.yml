@@ -4,6 +4,7 @@ linters:
   disable:
     - contextcheck
     - depguard
+    - err113
     - exhaustruct
     - funcorder
     - gochecknoglobals

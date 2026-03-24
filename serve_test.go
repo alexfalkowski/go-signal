@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alexfalkowski/go-signal"
+	"github.com/alexfalkowski/go-signal/internal/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,12 +33,42 @@ func TestServeStartError(t *testing.T) {
 		},
 	})
 
+	require.Error(t, signal.Serve(t.Context()))
+}
+
+func TestServeStartRollback(t *testing.T) {
+	startErr1 := errors.New("signal: serve start error 1")
+	startErr2 := errors.New("signal: serve start error 2")
+	stopErr := errors.New("signal: serve stop error")
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	events := test.RegisterRollbackHooks(startErr1, startErr2, stopErr)
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
 	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
+		done <- signal.Serve(ctx)
 	}()
 
-	require.Error(t, signal.Serve(t.Context()))
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, startErr1)
+		require.ErrorIs(t, err, startErr2)
+		require.ErrorIs(t, err, stopErr)
+	case <-time.After(100 * time.Millisecond):
+		require.Fail(t, "Serve blocked after startup failure")
+	}
+
+	require.Equal(t, []string{
+		"start:1",
+		"start:2",
+		"start:3",
+		"start:4",
+		"stop:1",
+		"stop:3",
+	}, *events)
 }
 
 func TestServeGoError(t *testing.T) {
