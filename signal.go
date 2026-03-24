@@ -1,4 +1,14 @@
-// Package signal coordinates application start/stop hooks around OS signals.
+// Package signal provides a small lifecycle for coordinating application
+// startup and shutdown work around process signals.
+//
+// A [Lifecycle] runs registered hooks in three phases:
+//
+//   - start, by calling each hook's [Hook.OnStart]
+//   - run, by executing user code through [Run] or waiting for shutdown through [Serve]
+//   - stop, by calling each hook's [Hook.OnStop]
+//
+// The package-level helpers operate on a process-wide default lifecycle that is
+// initialized with a 30-second stop timeout.
 package signal
 
 import (
@@ -7,18 +17,20 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/alexfalkowski/go-sync"
 )
 
-// Timer runs hook.Start once, then calls hook.Tick at the given interval until ctx is done.
-// When ctx is done, it calls hook.Stop with a fresh context bounded by timeout.
-// The overall execution is bounded by timeout via [Go].
+// Timer runs hook.Start once, then calls hook.Tick at the given interval until
+// ctx is done.
 //
-// The interval must be greater than zero.
+// When ctx is cancelled, Timer calls hook.Stop with a fresh background context
+// bounded by timeout. Nil hook callbacks are treated as no-ops.
+//
+// Timer executes its work through [Go], so a [Terminated] error still triggers
+// [Shutdown]. The interval must be greater than zero.
 func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) error {
 	if interval <= 0 {
 		return fmt.Errorf("%w: %s", ErrInvalidInterval, interval)
@@ -48,13 +60,20 @@ func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) erro
 	})
 }
 
-// ErrInvalidInterval marks an invalid interval passed to [Timer].
+// ErrInvalidInterval reports that [Timer] was called with an interval less than
+// or equal to zero.
 var ErrInvalidInterval = errors.New("signal: invalid interval")
 
-// ErrTerminated marks an error as requesting shutdown.
+// ErrTerminated marks an error as requesting process shutdown.
+//
+// Use [Terminated] to wrap an application error with this sentinel so that
+// [IsTerminated] reports true and [Go] can trigger [Shutdown].
 var ErrTerminated = errors.New("signal: terminated")
 
 // Terminated wraps err so that [IsTerminated] reports true.
+//
+// This is typically used by background work started with [Go] to signal that a
+// concurrently running [Serve] loop should exit.
 func Terminated(err error) error {
 	return fmt.Errorf("%w: %w", err, ErrTerminated)
 }
@@ -64,10 +83,11 @@ func IsTerminated(err error) bool {
 	return errors.Is(err, ErrTerminated)
 }
 
-// Go waits for handler to complete or for timeout to elapse.
+// Go runs handler with ctx and waits for it to complete, subject to timeout.
 //
-// If handler returns an error marked with [ErrTerminated], Go triggers a shutdown by
-// calling [Shutdown].
+// If handler returns an error marked with [ErrTerminated], Go triggers
+// [Shutdown] before returning the error. This lets long-running goroutines ask a
+// concurrently running [Serve] loop to stop.
 func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
 	return sync.Wait(ctx, timeout, sync.Hook{
 		OnRun: sync.Handler(handler),
@@ -81,17 +101,28 @@ func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
 	})
 }
 
-// Handler is a function invoked by hooks and lifecycle methods.
+// Handler is the function signature used by hooks and lifecycle methods.
+//
+// The supplied context is owned by the caller and should be observed for
+// cancellation and deadlines.
 type Handler func(context.Context) error
 
-// Hook defines optional lifecycle callbacks.
+// Hook groups optional lifecycle callbacks.
+//
+// Each callback is optional. When invoked through [Hook.Start], [Hook.Tick], or
+// [Hook.Stop], a nil callback is treated as a no-op.
 type Hook struct {
+	// OnStart runs during the lifecycle start phase before [Run] executes its
+	// handler or [Serve] begins waiting for shutdown.
 	OnStart Handler
-	OnTick  Handler
-	OnStop  Handler
+	// OnTick runs on each interval when the hook is used with [Timer].
+	OnTick Handler
+	// OnStop runs during the lifecycle stop phase and should release resources
+	// using the provided shutdown context.
+	OnStop Handler
 }
 
-// Start safely runs the OnStart.
+// Start calls [Hook.OnStart] if it is set, otherwise it returns nil.
 func (h Hook) Start(ctx context.Context) error {
 	if h.OnStart == nil {
 		return nil
@@ -100,7 +131,7 @@ func (h Hook) Start(ctx context.Context) error {
 	return h.OnStart(ctx)
 }
 
-// Tick safely runs the OnTick.
+// Tick calls [Hook.OnTick] if it is set, otherwise it returns nil.
 func (h Hook) Tick(ctx context.Context) error {
 	if h.OnTick == nil {
 		return nil
@@ -109,7 +140,7 @@ func (h Hook) Tick(ctx context.Context) error {
 	return h.OnTick(ctx)
 }
 
-// Stop safely runs the OnStop.
+// Stop calls [Hook.OnStop] if it is set, otherwise it returns nil.
 func (h Hook) Stop(ctx context.Context) error {
 	if h.OnStop == nil {
 		return nil
@@ -118,50 +149,62 @@ func (h Hook) Stop(ctx context.Context) error {
 	return h.OnStop(ctx)
 }
 
-var defaultLifecycle atomic.Pointer[Lifecycle]
+var defaultLifecycle sync.Pointer[Lifecycle]
 
 func init() {
 	defaultLifecycle.Store(NewLifeCycle(30 * time.Second))
 }
 
-// Default returns the default [Lifecycle].
+// Default returns the process-wide default [Lifecycle].
+//
+// The default lifecycle is initialized during package init with a 30-second stop
+// timeout.
 func Default() *Lifecycle {
 	return defaultLifecycle.Load()
 }
 
-// SetDefault makes l the default [Lifecycle].
+// SetDefault replaces the process-wide default [Lifecycle].
+//
+// Callers typically use this in tests or when they want package-level helpers
+// such as [Register], [Run], and [Serve] to target a custom lifecycle.
 func SetDefault(l *Lifecycle) {
 	defaultLifecycle.Store(l)
 }
 
-// Register with the default [Lifecycle].
+// Register adds h to the default [Lifecycle].
 func Register(h Hook) {
 	Default().Register(h)
 }
 
-// Run with the default [Lifecycle].
+// Run calls [Lifecycle.Run] on the default [Lifecycle].
 func Run(ctx context.Context, h Handler) error {
 	return Default().Run(ctx, h)
 }
 
-// Serve with the default [Lifecycle].
+// Serve calls [Lifecycle.Serve] on the default [Lifecycle].
 func Serve(ctx context.Context) error {
 	return Default().Serve(ctx)
 }
 
-// Shutdown with the default [Lifecycle].
+// Shutdown calls [Lifecycle.Shutdown] on the default [Lifecycle].
 func Shutdown() error {
 	return Default().Shutdown()
 }
 
-// NewLifeCycle returns a new [Lifecycle] configured with the given stop timeout.
+// NewLifeCycle returns a new empty [Lifecycle] configured with the given stop
+// timeout.
 //
-// The stop timeout is used by [Lifecycle.Serve] when running stop hooks.
+// The stop timeout is used by [Lifecycle.Serve] when running stop hooks after a
+// shutdown signal is received.
 func NewLifeCycle(timeout time.Duration) *Lifecycle {
 	return &Lifecycle{hooks: make([]Hook, 0), timeout: timeout}
 }
 
-// Lifecycle manages registered hooks.
+// Lifecycle manages a set of registered hooks.
+//
+// A lifecycle is usually configured during application setup by calling
+// [Lifecycle.Register], then executed through [Lifecycle.Run] or
+// [Lifecycle.Serve].
 type Lifecycle struct {
 	hooks   []Hook
 	timeout time.Duration
@@ -175,7 +218,15 @@ func (l *Lifecycle) Register(h Hook) {
 	l.hooks = append(l.hooks, h)
 }
 
-// Run runs start hooks, then h, then stop hooks.
+// Run executes the lifecycle against ctx.
+//
+// Run calls each registered start hook in registration order. If all start hooks
+// succeed, it calls h. If h also succeeds, Run then calls each registered stop
+// hook with the same ctx.
+//
+// Run stops immediately on the first start-hook error or on h returning an
+// error. Stop hooks are only run after h returns nil. Stop-hook errors are
+// combined with [errors.Join].
 func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 	if err := l.start(ctx); err != nil {
 		return err
@@ -188,11 +239,19 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 	return l.stop(ctx)
 }
 
-// Serve runs start hooks, waits for SIGINT/SIGTERM, then runs stop hooks.
+// Serve runs the lifecycle until shutdown is requested.
 //
-// Note: Serve takes ownership of SIGINT/SIGTERM for the entire process. It resets any
-// prior handlers and ignores these signals before registering its own notification,
-// so other packages' signal handlers for these signals will not run while Serve is active.
+// Serve resets any existing SIGINT and SIGTERM handlers, registers its own
+// notification context, runs all start hooks with that context, then blocks until
+// the notification context is done. Shutdown can happen because the parent ctx is
+// cancelled, because the process receives SIGINT or SIGTERM, or because
+// [Shutdown] delivers an interrupt to the current process.
+//
+// After shutdown is requested, Serve runs stop hooks with a fresh background
+// context bounded by the lifecycle timeout configured by [NewLifeCycle].
+//
+// Note: Serve takes ownership of SIGINT and SIGTERM for the process while it is
+// active. Other handlers for those signals will not run during that time.
 func (l *Lifecycle) Serve(ctx context.Context) error {
 	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
 
@@ -216,9 +275,10 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 	return l.stop(stopCtx)
 }
 
-// Shutdown sends an os.Interrupt signal to the current process.
+// Shutdown sends an [os.Interrupt] signal to the current process.
 //
-// This is primarily intended to unblock [Lifecycle.Serve].
+// This is primarily intended to unblock [Lifecycle.Serve] programmatically, for
+// example from a background goroutine or from tests.
 func (l *Lifecycle) Shutdown() error {
 	process, _ := os.FindProcess(os.Getpid())
 	return process.Signal(os.Interrupt)

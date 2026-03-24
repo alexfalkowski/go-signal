@@ -1,62 +1,54 @@
 # AGENTS.md
 
-## Repository overview
+## Overview
 
-This repository is a small Go library (`module github.com/alexfalkowski/go-signal`) for coordinating application start/stop hooks around OS signals.
+- Module: `github.com/alexfalkowski/go-signal`
+- Purpose: small Go library for coordinating application start/stop hooks around OS signals
+- Go version: `1.26.0`
 
-Primary public entry points live in `signal.go`:
+Primary public API lives in `signal.go`:
 
-- `signal.Register(Hook)` (`signal.go:122-125`)
-- `signal.Run(ctx, handler)` (`signal.go:127-130`)
-- `signal.Serve(ctx)` (`signal.go:132-135`)
-- `signal.Shutdown()` (`signal.go:137-140`)
-- `signal.Go(ctx, timeout, handler)` (`signal.go:55-67`)
-- `signal.Timer(ctx, timeout, interval, hook)` (`signal.go:16-40`)
+- `signal.Register(Hook)`
+- `signal.Run(ctx, handler)`
+- `signal.Serve(ctx)`
+- `signal.Shutdown()`
+- `signal.Go(ctx, timeout, handler)`
+- `signal.Timer(ctx, timeout, interval, hook)`
+- `signal.NewLifeCycle(timeout)`
+- `signal.SetDefault(lifecycle)` and `signal.Default()`
 
-Go version: `go 1.25.0` (`go.mod:3`).
+## Layout
 
-## Directory layout
+- `signal.go`: library implementation
+- `cmd/main.go`: runnable example used by `make run`
+- `run_test.go`: tests for `Run`
+- `serve_test.go`: tests for `Serve` and `Timer`
+- `signal_test.go`: integration-style tests
+- `README.md`: user-facing package documentation
+- `.circleci/config.yml`: CI workflow
+- `bin/`: git submodule with shared Make tooling
 
-- `signal.go`: library implementation.
-- `cmd/main.go`: example program (used by `make run`).
-- `*_test.go`: package tests (use `package signal_test`).
-  - `run_test.go`: tests for `Run`.
-  - `serve_test.go`: tests for `Serve` and `Timer`.
-  - `signal_test.go`: integration-style tests (HTTP server + exec command).
-- `.circleci/config.yml`: CI pipeline invoking Make targets.
-- `test/reports/`: CI artifacts (JUnit XML, coverage outputs).
-- `bin/`: git submodule providing shared build tooling and Makefile includes.
+## Tooling
 
-## Tooling and prerequisites
-
-### Git submodule (`bin/`)
-
-The top-level `Makefile` includes Makefiles from the `bin/` submodule (`Makefile:1-2`). Most `make` targets depend on scripts in `bin/`, so CI/local usage typically requires the submodule.
-
-Initialize the submodule:
+The top-level `Makefile` includes Makefiles from the `bin/` submodule, so most
+`make` targets depend on `bin/` being initialized:
 
 ```sh
 git submodule sync
 git submodule update --init
 ```
 
-Note: the submodule URL is configured as SSH (`.gitmodules:1-3`): `git@github.com:alexfalkowski/bin.git`.
+The submodule URL is SSH-based: `git@github.com:alexfalkowski/bin.git`.
 
-### Editor/formatting
+Formatting defaults from `.editorconfig`:
 
-`.editorconfig` enforces (`.editorconfig:1-16`):
+- LF line endings
+- tabs for `*.go`
+- tabs for `Makefile`
 
-- LF line endings.
-- Tabs for `*.go` files.
-- Tabs for `Makefile` recipes.
+## Key commands
 
-GolangCI-Lint and formatters are configured via `.golangci.yml`.
-
-## Essential commands
-
-### Run the example
-
-The repository `Makefile` defines a single direct target:
+Run the example:
 
 ```sh
 make run param=start
@@ -64,67 +56,43 @@ make run param=timer
 make run param=terminate
 ```
 
-This runs: `go run cmd/main.go $(param)` (`Makefile:4-6`).
-
-### Dependencies (vendoring)
-
-CI and some Make targets run tests with `-mod vendor`, so vendoring matters.
+Dependency maintenance:
 
 ```sh
-make dep    # go mod download && go mod tidy && go mod vendor (bin/build/make/go.mak:9-26)
-make clean  # runs bin/build/go/clean (bin/build/make/go.mak:36-38)
+make dep
+make clean
 ```
 
-### Tests
-
-Fast local run (module mode):
+Tests:
 
 ```sh
 go test ./...
-```
-
-CI-style run (race + coverage + junit report; uses vendored deps):
-
-```sh
 make specs
 ```
 
-`make specs` runs `gotestsum` and writes JUnit + coverage into `test/reports/` (`bin/build/make/go.mak:62-64`).
-
-### Lint
+Lint and security:
 
 ```sh
 make lint
 make fix-lint
-```
-
-- `make lint` runs `bin/build/go/fa` (field alignment) and golangci-lint (`bin/build/make/go.mak:39-53`).
-- `make fix-lint` runs the corresponding `-fix` variants when possible (`bin/build/make/go.mak:42-55`).
-
-### Security
-
-```sh
 make sec
 ```
 
-Runs `govulncheck -show verbose -test ./...` (`bin/build/make/go.mak:95-98`).
-
-### Coverage
+Coverage:
 
 ```sh
 make coverage
 ```
 
-Produces HTML and function coverage outputs in `test/reports/` (`bin/build/make/go.mak:76-86`).
-
 ## CI
 
-CircleCI runs the following (see `.circleci/config.yml:19-55`):
+CircleCI runs the main build job in this order:
 
 ```sh
 make source-key
 make clean
 make dep
+make clean
 make lint
 make sec
 make specs
@@ -132,49 +100,62 @@ make coverage
 make codecov-upload
 ```
 
-`make source-key` comes from `bin/build/make/git.mak` and writes `.source-key` (`bin/build/make/git.mak:175-177`).
+`make source-key` writes `.source-key`. Test reports and coverage artifacts are
+stored under `test/reports/`.
 
-## Code patterns and conventions
+## Behavior notes
 
-### Default lifecycle (global)
+### Lifecycle model
 
-- The package stores a default lifecycle in `atomic.Pointer[Lifecycle]` (`signal.go:106-120`).
-- It is initialized in `init()` to a 30s timeout (`signal.go:108-110`).
-- Tests often override it via `signal.SetDefault(signal.NewLifeCycle(...))`.
+- The package keeps a process-wide default lifecycle in `sync.Pointer[Lifecycle]`.
+- The default lifecycle is initialized in `init()` with a 30 second stop timeout.
+- Tests often replace it with `signal.SetDefault(signal.NewLifeCycle(...))`.
 
-### Hooks are nil-safe
+### Hooks
 
-`Hook` handlers are optional (`OnStart`, `OnTick`, `OnStop`), and `Hook.Start/Tick/Stop` return `nil` when the corresponding handler is unset (`signal.go:72-104`).
+- `Hook` callbacks are optional: `OnStart`, `OnTick`, and `OnStop`
+- `Hook.Start`, `Hook.Tick`, and `Hook.Stop` return `nil` when the callback is unset
 
-### Lifecycle registration is not concurrent-safe
+### Registration
 
-`Lifecycle.Register` appends to an internal slice and is not designed for concurrent use; it should be called during setup before `Run`/`Serve` (`signal.go:153-159`).
+- `Lifecycle.Register` appends to an internal slice
+- registration is not designed to be concurrent-safe
+- register hooks during setup, before calling `Run` or `Serve`
 
-### Serve owns SIGINT/SIGTERM while running
+### Run semantics
 
-`Lifecycle.Serve`:
+- `Lifecycle.Run` runs start hooks in registration order
+- if all start hooks succeed, it runs the supplied handler
+- stop hooks run only if the handler returns `nil`
+- start stops on the first error
+- stop collects all hook errors with `errors.Join`
 
-- Resets and ignores existing SIGINT/SIGTERM handlers (`signal.go:180-185`).
-- Creates a `signal.NotifyContext` and blocks until it is cancelled (`signal.go:186-199`).
+### Serve semantics
 
-This means other packages’ signal handlers for these signals will not run while `Serve` is active.
+- `Lifecycle.Serve` resets and ignores existing `SIGINT` and `SIGTERM` handlers
+- it creates a `signal.NotifyContext` and blocks until shutdown is requested
+- shutdown can come from parent context cancellation, an OS signal, or `signal.Shutdown()`
+- stop hooks run with a fresh background context bounded by the lifecycle timeout
+- while `Serve` is active, other handlers for `SIGINT` and `SIGTERM` will not run
 
-### Termination semantics
+### Shutdown and termination
 
-Termination is modeled by wrapping an error with `ErrTerminated`:
+- `Lifecycle.Shutdown` sends `os.Interrupt` to the current process
+- `signal.Terminated(err)` marks an error with `ErrTerminated`
+- `signal.IsTerminated(err)` checks that marker via `errors.Is`
+- `signal.Go` triggers `signal.Shutdown()` when it sees a terminated error
 
-- `signal.Terminated(err)` wraps an error (`signal.go:45-48`).
-- `signal.IsTerminated(err)` detects it via `errors.Is` (`signal.go:50-53`).
+### Timer
 
-`signal.Go` delegates to `github.com/alexfalkowski/go-sync` and triggers `signal.Shutdown()` when it sees a terminated error (`signal.go:55-67`).
+- `signal.Timer` runs `hook.Start` once, then `hook.Tick` at the requested interval
+- when the parent context ends, `Timer` runs `hook.Stop` with a fresh timeout-bound context
+- `interval <= 0` returns `ErrInvalidInterval`
+- `Timer` executes through `signal.Go`, so terminated errors still request shutdown
 
-### Stop error aggregation
+## Testing notes
 
-Stopping hooks accumulates errors and returns them via `errors.Join` (`signal.go:217-224`). Start stops on first error (`signal.go:208-215`).
-
-## Testing approach and gotchas
-
-- Tests are in `package signal_test` (black-box style).
-- Many `Serve`/`Timer` tests call `signal.Shutdown()` from a goroutine after `time.Sleep(time.Second)` to unblock `signal.Serve(...)` (e.g., `serve_test.go:19-25`). These are timing-sensitive by design.
-- `TestHTTPServe` binds to an ephemeral loopback port (`127.0.0.1:0`) rather than a fixed port (`signal_test.go:22-35`).
-- Tests often pass `t.Context()` (Go 1.20+ API) into the library calls (e.g., `signal_test.go:47-48`).
+- tests use `package signal_test`
+- many `Serve` and `Timer` tests unblock `signal.Serve(...)` by calling `signal.Shutdown()` from a goroutine after `time.Sleep(time.Second)`
+- these tests are intentionally timing-sensitive
+- `TestHTTPServe` binds to `127.0.0.1:0` instead of a fixed port
+- tests commonly pass `t.Context()` into library calls
