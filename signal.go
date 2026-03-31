@@ -15,8 +15,9 @@ import (
 // Timer runs hook.Start once, then calls hook.Tick at the given interval until
 // ctx is done.
 //
-// When ctx is cancelled, Timer calls hook.Stop with a fresh background context
-// bounded by timeout. Nil hook callbacks are treated as no-ops.
+// If ctx is cancelled or a timer hook returns an error, Timer calls hook.Stop
+// with a fresh background context bounded by timeout before returning. Nil hook
+// callbacks are treated as no-ops.
 //
 // Timer executes its work through [Go], so a [Terminated] error still triggers
 // [Shutdown]. The interval must be greater than zero.
@@ -30,19 +31,16 @@ func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) erro
 		defer ticker.Stop()
 
 		if err := hook.Start(ctx); err != nil {
-			return err
+			return errors.Join(err, stopHook(timeout, hook))
 		}
 
 		for {
 			select {
 			case <-ctx.Done():
-				stopCtx, cancel := context.WithTimeout(context.Background(), timeout)
-				defer cancel()
-
-				return hook.Stop(stopCtx)
+				return stopHook(timeout, hook)
 			case <-ticker.C:
 				if err := hook.Tick(ctx); err != nil {
-					return err
+					return errors.Join(err, stopHook(timeout, hook))
 				}
 			}
 		}
@@ -306,6 +304,13 @@ func (l *Lifecycle) start(ctx context.Context) ([]Hook, error) {
 
 func (l *Lifecycle) stopContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), l.timeout)
+}
+
+func stopHook(timeout time.Duration, hook Hook) error {
+	stopCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	return hook.Stop(stopCtx)
 }
 
 func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
