@@ -70,11 +70,17 @@ func IsTerminated(err error) bool {
 	return errors.Is(err, ErrTerminated)
 }
 
-// Go runs handler with ctx and waits for it to complete, subject to timeout.
+// Go runs handler with ctx and waits up to timeout for it to complete.
+//
+// Go is a best-effort waiting helper. If timeout elapses or ctx is done first,
+// Go returns nil immediately while handler may continue running in the
+// background.
 //
 // If handler returns an error marked with [ErrTerminated], Go triggers
-// [Shutdown] before returning the error. This lets long-running goroutines ask a
-// concurrently running [Serve] loop to stop.
+// [Shutdown] before returning the error. If that terminated error arrives after
+// the waiting window has elapsed, Shutdown is still triggered from the
+// background goroutine, but Go has already returned nil. Other late errors are
+// not returned to the caller.
 func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
 	return sync.Wait(ctx, timeout, sync.Hook{
 		OnRun: sync.Handler(handler),
@@ -250,6 +256,10 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 //
 // Note: Serve takes ownership of SIGINT and SIGTERM for the process while it is
 // active. Other handlers for those signals will not run during that time.
+//
+// Because Serve resets and re-registers SIGINT and SIGTERM handling during
+// startup, there is a narrow handoff window in which an arriving signal may
+// need to be sent again.
 func (l *Lifecycle) Serve(ctx context.Context) error {
 	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
 

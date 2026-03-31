@@ -93,6 +93,8 @@ shutdown is requested.
 - It waits for `SIGINT` or `SIGTERM`, or for the parent context to be canceled.
 - It then runs stop hooks with a fresh background context bounded by the
   lifecycle timeout.
+- During signal takeover, there is a narrow startup handoff window where an
+  incoming `SIGINT` or `SIGTERM` may need to be sent again.
 
 While `Serve` is active it takes ownership of `SIGINT` and `SIGTERM`, so other
 signal handlers for those signals will not run during that time.
@@ -146,9 +148,14 @@ from a background goroutine that wants to stop a running `Serve` loop.
 `Go` runs a handler with a timeout-aware wait. It is useful for long-running
 background work that should share a lifecycle context.
 
-If the handler returns an error marked with `signal.Terminated(err)`, `Go`
-triggers `Shutdown()` before returning the error. That gives background work a
-way to request that `Serve` stop.
+- `Go` only reports errors observed before its timeout or parent context
+  cancellation.
+- If the worker keeps running after that waiting window, later non-terminated
+  errors are not returned to the caller.
+- If the handler returns an error marked with `signal.Terminated(err)`, `Go`
+  triggers `Shutdown()` before returning the error.
+- If that terminated error happens after the waiting window has elapsed,
+  `Shutdown()` is still triggered, but `Go` has already returned `nil`.
 
 ```go
 import (
