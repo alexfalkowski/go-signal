@@ -52,7 +52,10 @@ signal.Register(signal.Hook{
 - `Run` attempts every start hook, even if an earlier one fails.
 - If startup fails, `Run` rolls back by calling stop hooks for the hooks that
   started successfully.
-- After successful startup, `Run` always runs stop hooks, even if the handler fails.
+- `Run` executes rollback and stop hooks with a fresh background context bounded
+  by the lifecycle timeout.
+- After successful startup, `Run` always runs stop hooks, even if the handler
+  fails.
 - Startup, handler, and stop-hook errors are combined with `errors.Join`.
 
 ```go
