@@ -66,9 +66,32 @@ func TestServeStartRollback(t *testing.T) {
 		"start:2",
 		"start:3",
 		"start:4",
-		"stop:1",
 		"stop:3",
+		"stop:1",
 	}, *events)
+}
+
+func TestServeStopOrder(t *testing.T) {
+	events := make([]string, 0, 3)
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	for _, event := range []string{"stop:1", "stop:2", "stop:3"} {
+		signal.Register(signal.Hook{
+			OnStop: func(context.Context) error {
+				events = append(events, event)
+				return nil
+			},
+		})
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		cancel()
+	}()
+
+	require.NoError(t, signal.Serve(ctx))
+	require.Equal(t, []string{"stop:3", "stop:2", "stop:1"}, events)
 }
 
 func TestServeGoError(t *testing.T) {

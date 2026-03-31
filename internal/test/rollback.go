@@ -24,7 +24,7 @@ import (
 //
 //   - attempts all registered start hooks
 //   - rolls back only successfully started hooks
-//   - preserves registration order during rollback
+//   - preserves reverse registration order during rollback
 //   - joins startup and rollback errors
 func RegisterRollbackHooks(startErr1, startErr2, stopErr error) *[]string {
 	events := make([]string, 0)

@@ -211,9 +211,10 @@ func (l *Lifecycle) Register(h Hook) {
 //
 // Run calls each registered start hook in registration order. If any start hook
 // fails, Run still attempts the remaining start hooks, then rolls back by
-// calling stop hooks for the hooks that started successfully using the same ctx.
-// If startup succeeds, it calls h, then calls each registered stop hook with
-// the same ctx.
+// calling stop hooks for the hooks that started successfully in reverse
+// registration order using the same ctx. If startup succeeds, it calls h, then
+// calls each registered stop hook in reverse registration order with the same
+// ctx.
 //
 // Startup, handler, and stop-hook errors are combined with [errors.Join].
 func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
@@ -231,13 +232,14 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 // notification context, runs all start hooks with that context, then blocks
 // until the notification context is done. If startup fails, Serve still
 // attempts the remaining start hooks, then rolls back successfully started hooks
-// with a fresh background context bounded by the lifecycle timeout. Shutdown can
-// happen because the parent ctx is cancelled, because the process receives
-// SIGINT or SIGTERM, or because [Shutdown] delivers an interrupt to the current
-// process.
+// in reverse registration order with a fresh background context bounded by the
+// lifecycle timeout. Shutdown can happen because the parent ctx is cancelled,
+// because the process receives SIGINT or SIGTERM, or because [Shutdown]
+// delivers an interrupt to the current process.
 //
-// After shutdown is requested, Serve runs stop hooks with a fresh background
-// context bounded by the lifecycle timeout configured by [NewLifeCycle].
+// After shutdown is requested, Serve runs stop hooks in reverse registration
+// order with a fresh background context bounded by the lifecycle timeout
+// configured by [NewLifeCycle].
 //
 // Note: Serve takes ownership of SIGINT and SIGTERM for the process while it is
 // active. Other handlers for those signals will not run during that time.
@@ -295,8 +297,8 @@ func (l *Lifecycle) start(ctx context.Context) ([]Hook, error) {
 
 func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
 	errs := make([]error, 0)
-	for _, hook := range hooks {
-		if err := hook.Stop(ctx); err != nil {
+	for i := len(hooks) - 1; i >= 0; i-- {
+		if err := hooks[i].Stop(ctx); err != nil {
 			errs = append(errs, err)
 		}
 	}
