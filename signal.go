@@ -183,8 +183,8 @@ func Shutdown() error {
 // NewLifeCycle returns a new empty [Lifecycle] configured with the given stop
 // timeout.
 //
-// The stop timeout is used by [Lifecycle.Serve] when running stop hooks after a
-// shutdown signal is received.
+// The stop timeout is used by [Lifecycle.Run] and [Lifecycle.Serve] when
+// running stop hooks during rollback and shutdown.
 func NewLifeCycle(timeout time.Duration) *Lifecycle {
 	return &Lifecycle{hooks: make([]Hook, 0), timeout: timeout}
 }
@@ -212,18 +212,27 @@ func (l *Lifecycle) Register(h Hook) {
 // Run calls each registered start hook in registration order. If any start hook
 // fails, Run still attempts the remaining start hooks, then rolls back by
 // calling stop hooks for the hooks that started successfully in reverse
-// registration order using the same ctx. If startup succeeds, it calls h, then
-// calls each registered stop hook in reverse registration order with the same
-// ctx.
+// registration order with a fresh background context bounded by the lifecycle
+// timeout. If startup succeeds, it calls h, then calls each registered stop
+// hook in reverse registration order with the same kind of fresh shutdown
+// context.
 //
 // Startup, handler, and stop-hook errors are combined with [errors.Join].
 func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 	started, err := l.start(ctx)
 	if err != nil {
-		return errors.Join(err, l.stop(ctx, started))
+		stopCtx, cancel := l.stopContext()
+		defer cancel()
+
+		return errors.Join(err, l.stop(stopCtx, started))
 	}
 
-	return errors.Join(h(ctx), l.stop(ctx, l.hooks))
+	handlerErr := h(ctx)
+
+	stopCtx, cancel := l.stopContext()
+	defer cancel()
+
+	return errors.Join(handlerErr, l.stop(stopCtx, l.hooks))
 }
 
 // Serve runs the lifecycle until shutdown is requested.
@@ -255,7 +264,7 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 
 	started, err := l.start(notifyCtx)
 	if err != nil {
-		stopCtx, cancel := context.WithTimeout(context.Background(), l.timeout)
+		stopCtx, cancel := l.stopContext()
 		defer cancel()
 
 		return errors.Join(err, l.stop(stopCtx, started))
@@ -264,7 +273,7 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 	<-notifyCtx.Done()
 	stop()
 
-	stopCtx, cancel := context.WithTimeout(context.Background(), l.timeout)
+	stopCtx, cancel := l.stopContext()
 	defer cancel()
 
 	return l.stop(stopCtx, l.hooks)
@@ -293,6 +302,10 @@ func (l *Lifecycle) start(ctx context.Context) ([]Hook, error) {
 	}
 
 	return started, errors.Join(errs...)
+}
+
+func (l *Lifecycle) stopContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), l.timeout)
 }
 
 func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {

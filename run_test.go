@@ -81,6 +81,36 @@ func TestRunStartRollback(t *testing.T) {
 	}, *events)
 }
 
+func TestRunStartRollbackFreshStopContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	stopped := false
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			stopped = true
+			return ctx.Err()
+		},
+	})
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			cancel()
+			return errRun
+		},
+	})
+
+	err := signal.Run(ctx, func(context.Context) error {
+		return nil
+	})
+
+	require.ErrorIs(t, err, errRun)
+	require.NotErrorIs(t, err, context.Canceled)
+	require.True(t, stopped)
+}
+
 func TestRunStopOrder(t *testing.T) {
 	events := make([]string, 0, 3)
 
@@ -98,6 +128,22 @@ func TestRunStopOrder(t *testing.T) {
 		return nil
 	}))
 	require.Equal(t, []string{"stop:3", "stop:2", "stop:1"}, events)
+}
+
+func TestRunStopFreshContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStop: func(ctx context.Context) error {
+			return ctx.Err()
+		},
+	})
+
+	require.NoError(t, signal.Run(ctx, func(context.Context) error {
+		cancel()
+		return nil
+	}))
 }
 
 func TestRunStopError(t *testing.T) {
