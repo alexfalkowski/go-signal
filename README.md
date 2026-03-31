@@ -170,8 +170,8 @@ err := signal.Go(context.Background(), 5*time.Second, func(context.Context) erro
 
 - call `hook.OnStart` once
 - call `hook.OnTick` on each interval
-- when the parent context is canceled, call `hook.OnStop` with a fresh
-  background context bounded by the supplied timeout
+- when the parent context is canceled or a timer hook returns an error, call
+  `hook.OnStop` with a fresh background context bounded by the supplied timeout
 
 The interval must be greater than zero or `Timer` returns `ErrInvalidInterval`.
 

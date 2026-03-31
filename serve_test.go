@@ -273,6 +273,25 @@ func TestTimerStartError(t *testing.T) {
 	require.NoError(t, signal.Serve(t.Context()))
 }
 
+func TestTimerStartErrorStopsHook(t *testing.T) {
+	stopped := false
+	stopErr := errors.New("signal: timer start stop error")
+
+	err := signal.Timer(t.Context(), time.Second, time.Millisecond, signal.Hook{
+		OnStart: func(context.Context) error {
+			return errServe
+		},
+		OnStop: func(context.Context) error {
+			stopped = true
+			return stopErr
+		},
+	})
+
+	require.ErrorIs(t, err, errServe)
+	require.ErrorIs(t, err, stopErr)
+	require.True(t, stopped)
+}
+
 func TestTimerTickStopError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
@@ -291,6 +310,25 @@ func TestTimerTickStopError(t *testing.T) {
 	}()
 
 	require.NoError(t, signal.Serve(t.Context()))
+}
+
+func TestTimerTickErrorStopsHook(t *testing.T) {
+	stopped := false
+	stopErr := errors.New("signal: timer tick stop error")
+
+	err := signal.Timer(t.Context(), time.Second, time.Millisecond, signal.Hook{
+		OnTick: func(context.Context) error {
+			return errServe
+		},
+		OnStop: func(context.Context) error {
+			stopped = true
+			return stopErr
+		},
+	})
+
+	require.ErrorIs(t, err, errServe)
+	require.ErrorIs(t, err, stopErr)
+	require.True(t, stopped)
 }
 
 func TestTimerTickError(t *testing.T) {
