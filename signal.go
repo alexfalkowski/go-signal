@@ -306,13 +306,6 @@ func (l *Lifecycle) stopContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), l.timeout)
 }
 
-func stopHook(timeout time.Duration, hook Hook) error {
-	stopCtx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	return hook.Stop(stopCtx)
-}
-
 func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
 	errs := make([]error, 0)
 	for i := len(hooks) - 1; i >= 0; i-- {
@@ -321,4 +314,11 @@ func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+func stopHook(timeout time.Duration, hook Hook) error {
+	stopCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	return hook.Stop(stopCtx)
 }
