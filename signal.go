@@ -120,7 +120,6 @@ func (h Hook) Start(ctx context.Context) error {
 	if h.OnStart == nil {
 		return nil
 	}
-
 	return h.OnStart(ctx)
 }
 
@@ -129,7 +128,6 @@ func (h Hook) Tick(ctx context.Context) error {
 	if h.OnTick == nil {
 		return nil
 	}
-
 	return h.OnTick(ctx)
 }
 
@@ -138,7 +136,6 @@ func (h Hook) Stop(ctx context.Context) error {
 	if h.OnStop == nil {
 		return nil
 	}
-
 	return h.OnStop(ctx)
 }
 
@@ -318,11 +315,13 @@ func (l *Lifecycle) stopContext() (context.Context, context.CancelFunc) {
 
 func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
 	errs := make([]error, 0)
+
 	for i := len(hooks) - 1; i >= 0; i-- {
 		if err := hooks[i].Stop(ctx); err != nil {
 			errs = append(errs, err)
 		}
 	}
+
 	return errors.Join(errs...)
 }
 
