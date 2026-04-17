@@ -8,6 +8,7 @@ import (
 
 	"github.com/alexfalkowski/go-signal"
 	"github.com/alexfalkowski/go-signal/internal/test"
+	"github.com/alexfalkowski/go-sync"
 	"github.com/stretchr/testify/require"
 )
 
@@ -175,4 +176,22 @@ func TestRunHandlerAndStopError(t *testing.T) {
 
 	require.ErrorIs(t, err, errRun)
 	require.ErrorIs(t, err, stopErr)
+}
+
+func TestRunStopTimeoutCause(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Microsecond))
+	signal.Register(signal.Hook{
+		OnStop: func(ctx context.Context) error {
+			<-ctx.Done()
+			return context.Cause(ctx)
+		},
+	})
+
+	err := signal.Run(t.Context(), func(context.Context) error {
+		return nil
+	})
+
+	require.ErrorIs(t, err, signal.ErrTimeout)
+	require.ErrorIs(t, err, sync.ErrTimeout)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
