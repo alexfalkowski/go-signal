@@ -16,8 +16,9 @@ import (
 // ctx is done.
 //
 // If ctx is cancelled or a timer hook returns an error, Timer calls hook.Stop
-// with a fresh background context bounded by timeout before returning. Nil hook
-// callbacks are treated as no-ops.
+// with a fresh background context bounded by timeout before returning. If that
+// stop context expires and the stop hook returns [context.Cause], the returned
+// error matches [ErrTimeout]. Nil hook callbacks are treated as no-ops.
 //
 // Timer executes its work through [Go], so a [Terminated] error still triggers
 // [Shutdown]. The interval must be greater than zero.
@@ -50,6 +51,12 @@ func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) erro
 // ErrInvalidInterval reports that [Timer] was called with an interval less than
 // or equal to zero.
 var ErrInvalidInterval = errors.New("signal: invalid interval")
+
+// ErrTimeout is the timeout cause used by derived stop contexts in this package.
+//
+// It wraps [sync.ErrTimeout], so [errors.Is] also matches
+// [context.DeadlineExceeded].
+var ErrTimeout = fmt.Errorf("signal: %w", sync.ErrTimeout)
 
 // ErrTerminated marks an error as requesting process shutdown.
 //
@@ -216,7 +223,8 @@ func (l *Lifecycle) Register(h Hook) {
 // registration order with a fresh background context bounded by the lifecycle
 // timeout. If startup succeeds, it calls h, then calls each registered stop
 // hook in reverse registration order with the same kind of fresh shutdown
-// context.
+// context. If a stop hook returns [context.Cause] after that context expires,
+// the returned error matches [ErrTimeout].
 //
 // Startup, handler, and stop-hook errors are combined with [errors.Join].
 func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
@@ -249,7 +257,8 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 //
 // After shutdown is requested, Serve runs stop hooks in reverse registration
 // order with a fresh background context bounded by the lifecycle timeout
-// configured by [NewLifeCycle].
+// configured by [NewLifeCycle]. If a stop hook returns [context.Cause] after
+// that context expires, the returned error matches [ErrTimeout].
 //
 // Note: Serve takes ownership of SIGINT and SIGTERM for the process while it is
 // active. Other handlers for those signals will not run during that time.
@@ -310,7 +319,7 @@ func (l *Lifecycle) start(ctx context.Context) ([]Hook, error) {
 }
 
 func (l *Lifecycle) stopContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), l.timeout)
+	return context.WithTimeoutCause(context.Background(), l.timeout, ErrTimeout)
 }
 
 func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
@@ -326,7 +335,7 @@ func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
 }
 
 func stopHook(timeout time.Duration, hook Hook) error {
-	stopCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	stopCtx, cancel := context.WithTimeoutCause(context.Background(), timeout, ErrTimeout)
 	defer cancel()
 
 	return hook.Stop(stopCtx)

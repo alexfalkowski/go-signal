@@ -14,6 +14,7 @@ Primary public API lives in `signal.go`:
 - `signal.Shutdown()`
 - `signal.Go(ctx, timeout, handler)`
 - `signal.Timer(ctx, timeout, interval, hook)`
+- `signal.ErrTimeout`
 - `signal.NewLifeCycle(timeout)`
 - `signal.SetDefault(lifecycle)` and `signal.Default()`
 
@@ -130,6 +131,7 @@ stored under `test/reports/`.
 - if startup fails, it rolls back by running stop hooks only for successfully started hooks using the caller context
 - if all start hooks succeed, it runs the supplied handler
 - after successful startup, stop hooks run even if the handler returns an error
+- if a stop hook returns `context.Cause(ctx)` after the lifecycle stop context expires, the returned error matches `signal.ErrTimeout`
 - stop collects all hook errors with `errors.Join`
 
 ### Serve semantics
@@ -140,6 +142,7 @@ stored under `test/reports/`.
 - it creates a `signal.NotifyContext` and blocks until shutdown is requested
 - shutdown can come from parent context cancellation, an OS signal, or `signal.Shutdown()`
 - stop hooks run with a fresh background context bounded by the lifecycle timeout
+- if a stop hook returns `context.Cause(ctx)` after that stop context expires, the returned error matches `signal.ErrTimeout`
 - while `Serve` is active, other handlers for `SIGINT` and `SIGTERM` will not run
 
 ### Shutdown and termination
@@ -153,6 +156,7 @@ stored under `test/reports/`.
 
 - `signal.Timer` runs `hook.Start` once, then `hook.Tick` at the requested interval
 - when the parent context ends, `Timer` runs `hook.Stop` with a fresh timeout-bound context
+- if that timeout-bound stop context expires and the hook returns `context.Cause(ctx)`, the returned error matches `signal.ErrTimeout`
 - `interval <= 0` returns `ErrInvalidInterval`
 - `Timer` executes through `signal.Go`, so terminated errors still request shutdown
 

@@ -19,6 +19,10 @@ The package centers on a `Lifecycle` that runs hooks in three phases:
 The package-level helpers operate on a process-wide default lifecycle initialized
 with a 30 second stop timeout.
 
+`signal.ErrTimeout` is the package-owned timeout cause used for lifecycle stop
+contexts and timer stop hooks. It wraps `sync.ErrTimeout`, which in turn wraps
+`context.DeadlineExceeded`.
+
 ## Install
 
 ```sh
@@ -54,6 +58,8 @@ signal.Register(signal.Hook{
   started successfully.
 - `Run` executes rollback and stop hooks with a fresh background context bounded
   by the lifecycle timeout.
+- If a rollback or stop hook returns `context.Cause(ctx)` after that stop
+  context expires, the returned error matches `signal.ErrTimeout`.
 - After successful startup, `Run` always runs stop hooks, even if the handler
   fails.
 - Startup, handler, and stop-hook errors are combined with `errors.Join`.
@@ -93,6 +99,8 @@ shutdown is requested.
 - It waits for `SIGINT` or `SIGTERM`, or for the parent context to be canceled.
 - It then runs stop hooks with a fresh background context bounded by the
   lifecycle timeout.
+- If a stop hook returns `context.Cause(ctx)` after that stop context expires,
+  the returned error matches `signal.ErrTimeout`.
 - During signal takeover, there is a narrow startup handoff window where an
   incoming `SIGINT` or `SIGTERM` may need to be sent again.
 
@@ -179,6 +187,8 @@ err := signal.Go(context.Background(), 5*time.Second, func(context.Context) erro
 - call `hook.OnTick` on each interval
 - when the parent context is canceled or a timer hook returns an error, call
   `hook.OnStop` with a fresh background context bounded by the supplied timeout
+- if that stop context expires and the hook returns `context.Cause(ctx)`, the
+  returned error matches `signal.ErrTimeout`
 
 The interval must be greater than zero or `Timer` returns `ErrInvalidInterval`.
 
