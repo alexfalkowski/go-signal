@@ -149,13 +149,13 @@ func (h Hook) Stop(ctx context.Context) error {
 var defaultLifecycle sync.Pointer[Lifecycle]
 
 func init() {
-	defaultLifecycle.Store(NewLifeCycle(30 * time.Second))
+	defaultLifecycle.Store(NewDefaultLifecycle())
 }
 
 // Default returns the process-wide default [Lifecycle].
 //
-// The default lifecycle is initialized during package init with a 30-second stop
-// timeout.
+// The default lifecycle is initialized during package init with
+// [NewDefaultLifecycle].
 func Default() *Lifecycle {
 	return defaultLifecycle.Load()
 }
@@ -163,8 +163,13 @@ func Default() *Lifecycle {
 // SetDefault replaces the process-wide default [Lifecycle].
 //
 // Callers typically use this in tests or when they want package-level helpers
-// such as [Register], [Run], and [Serve] to target a custom lifecycle.
+// such as [Register], [Run], and [Serve] to target a custom lifecycle. If l is
+// nil, SetDefault restores a fresh lifecycle from [NewDefaultLifecycle].
 func SetDefault(l *Lifecycle) {
+	if l == nil {
+		l = NewDefaultLifecycle()
+	}
+
 	defaultLifecycle.Store(l)
 }
 
@@ -186,6 +191,12 @@ func Serve(ctx context.Context) error {
 // Shutdown calls [Lifecycle.Shutdown] on the default [Lifecycle].
 func Shutdown() error {
 	return Default().Shutdown()
+}
+
+// NewDefaultLifecycle returns a new empty [Lifecycle] with the package's
+// default 30-second stop timeout.
+func NewDefaultLifecycle() *Lifecycle {
+	return NewLifeCycle(30 * time.Second)
 }
 
 // NewLifeCycle returns a new empty [Lifecycle] configured with the given stop

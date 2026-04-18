@@ -3,99 +3,53 @@
 ## Shared skill
 
 Use the shared `coding-standards` skill from `./bin/skills/coding-standards`
-for cross-repository coding, review, testing, documentation, and PR
-conventions. Treat this `AGENTS.md` as the repo-specific companion to that
-skill.
+for general coding, review, testing, documentation, and PR conventions. This
+file only captures repo-specific guidance.
 
-## Overview
+## Repo
 
 - Module: `github.com/alexfalkowski/go-signal`
-- Purpose: small Go library for coordinating application start/stop hooks around OS signals
+- Purpose: Go library for coordinating startup and shutdown hooks around OS
+  signals
 - Go version: `1.26.0`
-
-Primary public API lives in `signal.go`:
-
-- `signal.Register(Hook)`
-- `signal.Run(ctx, handler)`
-- `signal.Serve(ctx)`
-- `signal.Shutdown()`
-- `signal.Go(ctx, timeout, handler)`
-- `signal.Timer(ctx, timeout, interval, hook)`
-- `signal.ErrTimeout`
-- `signal.NewLifeCycle(timeout)`
-- `signal.SetDefault(lifecycle)` and `signal.Default()`
+- Public API: `Register`, `Run`, `Serve`, `Shutdown`, `Go`, `Timer`,
+  `ErrTimeout`, `NewDefaultLifecycle`, `NewLifeCycle`, `SetDefault`, `Default`
 
 ## Layout
 
 - `signal.go`: library implementation
-- `internal/test/`: shared test helpers for startup rollback scenarios
-- `cmd/main.go`: runnable example used by `make run`
-- `run_test.go`: tests for `Run`
-- `serve_test.go`: tests for `Serve` and `Timer`
+- `run_test.go`: `Run` coverage
+- `serve_test.go`: `Serve` and `Timer` coverage
 - `signal_test.go`: integration-style tests
-- `README.md`: user-facing package documentation
-- `.circleci/config.yml`: CI workflow
-- `bin/`: git submodule with shared Make tooling
+- `internal/test/`: shared rollback test helpers
+- `cmd/main.go`: runnable example for `make run`
+- `README.md`: user-facing docs
+- `.circleci/config.yml`: CI source of truth
+- `bin/`: shared make tooling submodule
 
-## Tooling
+## Commands
 
-The top-level `Makefile` includes Makefiles from the `bin/` submodule, so most
-`make` targets depend on `bin/` being initialized:
+Most `make` targets depend on `bin/` being initialized:
 
 ```sh
 git submodule sync
 git submodule update --init
 ```
 
-The submodule URL is SSH-based: `git@github.com:alexfalkowski/bin.git`.
-
-Formatting defaults from `.editorconfig`:
-
-- LF line endings
-- tabs for `*.go`
-- tabs for `Makefile`
-
-## Key commands
-
-Run the example:
+Primary commands:
 
 ```sh
+make dep
+make lint
+make sec
+make specs
+make coverage
 make run param=start
 make run param=timer
 make run param=terminate
 ```
 
-Dependency maintenance:
-
-```sh
-make dep
-make clean
-```
-
-Tests:
-
-```sh
-go test ./...
-make specs
-```
-
-Lint and security:
-
-```sh
-make lint
-make fix-lint
-make sec
-```
-
-Coverage:
-
-```sh
-make coverage
-```
-
-## CI
-
-CircleCI runs the main build job in this order:
+CI build order:
 
 ```sh
 make source-key
@@ -109,68 +63,43 @@ make coverage
 make codecov-upload
 ```
 
-`make source-key` writes `.source-key`. Test reports and coverage artifacts are
-stored under `test/reports/`.
+## Repo-specific behavior
 
-## Behavior notes
-
-### Lifecycle model
-
-- The package keeps a process-wide default lifecycle in `sync.Pointer[Lifecycle]`.
-- The default lifecycle is initialized in `init()` with a 30 second stop timeout.
-- Tests often replace it with `signal.SetDefault(signal.NewLifeCycle(...))`.
-
-### Hooks
-
-- `Hook` callbacks are optional: `OnStart`, `OnTick`, and `OnStop`
-- `Hook.Start`, `Hook.Tick`, and `Hook.Stop` return `nil` when the callback is unset
-
-### Registration
-
-- `Lifecycle.Register` appends to an internal slice
-- registration is not designed to be concurrent-safe
-- register hooks during setup, before calling `Run` or `Serve`
-
-### Run semantics
-
-- `Lifecycle.Run` runs start hooks in registration order
-- it attempts all start hooks and collects startup errors with `errors.Join`
-- if startup fails, it rolls back by running stop hooks only for successfully started hooks using the caller context
-- if all start hooks succeed, it runs the supplied handler
-- after successful startup, stop hooks run even if the handler returns an error
-- if a stop hook returns `context.Cause(ctx)` after the lifecycle stop context expires, the returned error matches `signal.ErrTimeout`
-- stop collects all hook errors with `errors.Join`
-
-### Serve semantics
-
-- `Lifecycle.Serve` resets and ignores existing `SIGINT` and `SIGTERM` handlers
-- it attempts all start hooks and collects startup errors with `errors.Join`
-- if startup fails, it rolls back successfully started hooks with a fresh background context bounded by the lifecycle timeout and returns without entering the wait loop
-- it creates a `signal.NotifyContext` and blocks until shutdown is requested
-- shutdown can come from parent context cancellation, an OS signal, or `signal.Shutdown()`
-- stop hooks run with a fresh background context bounded by the lifecycle timeout
-- if a stop hook returns `context.Cause(ctx)` after that stop context expires, the returned error matches `signal.ErrTimeout`
-- while `Serve` is active, other handlers for `SIGINT` and `SIGTERM` will not run
-
-### Shutdown and termination
-
-- `Lifecycle.Shutdown` sends `os.Interrupt` to the current process
-- `signal.Terminated(err)` marks an error with `ErrTerminated`
-- `signal.IsTerminated(err)` checks that marker via `errors.Is`
-- `signal.Go` triggers `signal.Shutdown()` when it sees a terminated error
-
-### Timer
-
-- `signal.Timer` runs `hook.Start` once, then `hook.Tick` at the requested interval
-- when the parent context ends, `Timer` runs `hook.Stop` with a fresh timeout-bound context
-- if that timeout-bound stop context expires and the hook returns `context.Cause(ctx)`, the returned error matches `signal.ErrTimeout`
-- `interval <= 0` returns `ErrInvalidInterval`
-- `Timer` executes through `signal.Go`, so terminated errors still request shutdown
+- The package keeps a process-wide default lifecycle in
+  `sync.Pointer[Lifecycle]`.
+- The default lifecycle is initialized in `init()` with
+  `signal.NewDefaultLifecycle()`, which uses a 30 second stop timeout.
+- `Hook` callbacks are optional. `Hook.Start`, `Hook.Tick`, and `Hook.Stop`
+  treat nil callbacks as no-ops.
+- `Lifecycle.Register` is not concurrent-safe. Register hooks during setup,
+  before `Run` or `Serve`.
+- `Lifecycle.Run` starts hooks in registration order, attempts every start hook,
+  joins startup errors, rolls back only successfully started hooks on startup
+  failure, and always runs stop hooks after successful startup.
+- `Lifecycle.Run` rollback and shutdown hooks use fresh timeout-bound stop
+  contexts. Returning `context.Cause(ctx)` from an expired stop context should
+  match `signal.ErrTimeout`.
+- `Lifecycle.Serve` resets and takes ownership of `SIGINT` and `SIGTERM` while
+  active.
+- `Lifecycle.Serve` startup failure still attempts remaining start hooks, then
+  rolls back successfully started hooks with a fresh timeout-bound background
+  context.
+- `Lifecycle.Serve` shutdown can come from parent context cancellation, an OS
+  signal, or `signal.Shutdown()`.
+- `Lifecycle.Shutdown` sends `os.Interrupt` to the current process.
+- `signal.Terminated(err)` marks an error with `ErrTerminated`,
+  `signal.IsTerminated(err)` checks that marker, and `signal.Go` triggers
+  `signal.Shutdown()` when it sees a terminated error.
+- `signal.Timer` runs `hook.Start` once, then `hook.Tick` on each interval, and
+  runs `hook.Stop` with a fresh timeout-bound context when the parent context
+  ends or a timer hook returns an error.
+- `signal.Timer` returns `ErrInvalidInterval` for `interval <= 0`.
 
 ## Testing notes
 
-- tests use `package signal_test`
-- many `Serve` and `Timer` tests unblock `signal.Serve(...)` by calling `signal.Shutdown()` from a goroutine after `time.Sleep(time.Second)`
-- these tests are intentionally timing-sensitive
-- `TestHTTPServe` binds to `127.0.0.1:0` instead of a fixed port
-- tests commonly pass `t.Context()` into library calls
+- Tests use `package signal_test`.
+- Many `Serve` and `Timer` tests intentionally unblock with
+  `signal.Shutdown()` after `time.Sleep(time.Second)`.
+- Those tests are timing-sensitive by design.
+- `TestHTTPServe` binds to `127.0.0.1:0`.
+- Tests commonly pass `t.Context()` into library calls.
