@@ -17,7 +17,7 @@ The package centers on a `Lifecycle` that runs hooks in three phases:
 - stop: call each registered `OnStop`
 
 The package-level helpers operate on a process-wide default lifecycle initialized
-with a 30 second stop timeout.
+with `NewDefaultLifecycle()`, which uses a 30 second stop timeout.
 
 `signal.ErrTimeout` is the package-owned timeout cause used for lifecycle stop
 contexts and timer stop hooks. It wraps `sync.ErrTimeout`, which in turn wraps
@@ -30,6 +30,11 @@ go get github.com/alexfalkowski/go-signal
 ```
 
 ## Core API
+
+### NewDefaultLifecycle
+
+Use `NewDefaultLifecycle` when you want the package's standard lifecycle
+configuration without relying on the package-level singleton.
 
 ### Register
 
@@ -222,8 +227,9 @@ signal.Register(signal.Hook{
 
 ## Custom lifecycle
 
-Use `NewLifeCycle` when you do not want to rely on the package-level default
-lifecycle.
+Use `NewLifeCycle` when you need a custom stop timeout. Use
+`NewDefaultLifecycle` when you want the same 30 second timeout as the
+package-level default, but on your own lifecycle instance.
 
 ```go
 import (

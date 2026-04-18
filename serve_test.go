@@ -192,6 +192,7 @@ func TestServeStartLoopContext(t *testing.T) {
 					select {
 					case <-ctx.Done():
 						ch <- true
+						return nil
 					default:
 						time.Sleep(time.Millisecond)
 					}

@@ -23,6 +23,48 @@ func TestRunEmpty(t *testing.T) {
 	}))
 }
 
+func TestSetDefaultNilResetsLifecycle(t *testing.T) {
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			return errRun
+		},
+	})
+
+	signal.SetDefault(lifecycle)
+	signal.SetDefault(nil)
+
+	started := false
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			started = true
+			return nil
+		},
+	})
+
+	require.NoError(t, signal.Run(t.Context(), func(context.Context) error {
+		return nil
+	}))
+	require.True(t, started)
+}
+
+func TestNewDefaultLifecycle(t *testing.T) {
+	lifecycle := signal.NewDefaultLifecycle()
+	started := false
+
+	lifecycle.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			started = true
+			return nil
+		},
+	})
+
+	require.NoError(t, lifecycle.Run(t.Context(), func(context.Context) error {
+		return nil
+	}))
+	require.True(t, started)
+}
+
 func TestRunError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	stopped := false
