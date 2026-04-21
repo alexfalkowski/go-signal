@@ -15,10 +15,11 @@ import (
 // Timer runs hook.Start once, then calls hook.Tick at the given interval until
 // ctx is done.
 //
-// If ctx is cancelled or a timer hook returns an error, Timer calls hook.Stop
-// with a fresh background context bounded by timeout before returning. If that
-// stop context expires and the stop hook returns [context.Cause], the returned
-// error matches [ErrTimeout]. Nil hook callbacks are treated as no-ops.
+// If hook.Start fails, or if ctx is cancelled or a timer hook returns an
+// error, Timer calls hook.Stop with a fresh background context bounded by
+// timeout before returning. If that stop context expires and the stop hook
+// returns [context.Cause], the returned error matches [ErrTimeout]. Nil hook
+// callbacks are treated as no-ops.
 //
 // Timer executes its work through [Go], so a [Terminated] error still triggers
 // [Shutdown]. The interval must be greater than zero.
@@ -67,8 +68,13 @@ var ErrTerminated = errors.New("signal: terminated")
 // Terminated wraps err so that [IsTerminated] reports true.
 //
 // This is typically used by background work started with [Go] to signal that a
-// concurrently running [Serve] loop should exit.
+// concurrently running [Serve] loop should exit. If err is nil, Terminated
+// returns [ErrTerminated].
 func Terminated(err error) error {
+	if err == nil {
+		return ErrTerminated
+	}
+
 	return fmt.Errorf("%w: %w", err, ErrTerminated)
 }
 

@@ -361,3 +361,10 @@ func TestTimerNegativeInterval(t *testing.T) {
 	err := signal.Timer(t.Context(), time.Second, -time.Second, signal.Hook{})
 	require.ErrorIs(t, err, signal.ErrInvalidInterval)
 }
+
+func TestTerminatedNil(t *testing.T) {
+	err := signal.Terminated(nil)
+
+	require.ErrorIs(t, err, signal.ErrTerminated)
+	require.EqualError(t, err, signal.ErrTerminated.Error())
+}

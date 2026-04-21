@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -10,6 +12,13 @@ import (
 )
 
 var logger = slog.Default()
+
+const usageMessage = "usage: go run cmd/main.go [start|timer|terminate]"
+
+var (
+	errUsage       = errors.New(usageMessage)
+	errInvalidMode = errors.New("invalid mode")
+)
 
 func start(ctx context.Context) error {
 	<-ctx.Done()
@@ -32,8 +41,8 @@ func terminate(_ context.Context) error {
 	return signal.Terminated(context.Canceled)
 }
 
-func main() {
-	switch os.Args[1] {
+func configure(mode string) error {
+	switch mode {
 	case "start":
 		signal.Register(signal.Hook{
 			OnStart: func(ctx context.Context) error {
@@ -80,9 +89,35 @@ func main() {
 				return ctx.Err()
 			},
 		})
+	default:
+		return fmt.Errorf("%w %q: %s", errInvalidMode, mode, usageMessage)
 	}
 
-	if err := signal.Serve(context.Background()); err != nil {
-		logger.Info("server failed", "error", err)
+	return nil
+}
+
+func run(args []string) error {
+	if len(args) < 2 {
+		return errUsage
 	}
+
+	if err := configure(args[1]); err != nil {
+		return err
+	}
+
+	return signal.Serve(context.Background())
+}
+
+func main() {
+	err := run(os.Args)
+	if err == nil {
+		return
+	}
+
+	if errors.Is(err, errUsage) || errors.Is(err, errInvalidMode) {
+		logger.Error(err.Error())
+		os.Exit(2)
+	}
+
+	logger.Info("server failed", "error", err)
 }
