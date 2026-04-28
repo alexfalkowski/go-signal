@@ -193,10 +193,14 @@ err := signal.Go(context.Background(), 5*time.Second, func(context.Context) erro
 - call `hook.OnStart` once
 - call `hook.OnTick` on each interval
 - if `hook.OnStart` fails, or when the parent context is canceled or a timer
-  hook returns an error, call `hook.OnStop` with a fresh background context
-  bounded by the supplied timeout
+  hook returns an error, the timer worker calls `hook.OnStop` with a fresh
+  background context bounded by the supplied timeout
 - if that stop context expires and the hook returns `context.Cause(ctx)`, the
   returned error matches `signal.ErrTimeout`
+
+Because `Timer` executes through `Go`, it uses best-effort waiting semantics:
+when the parent context is canceled or the wait timeout elapses first, `Timer`
+may return before the timer worker has run `hook.OnStop`.
 
 The interval must be greater than zero or `Timer` returns `ErrInvalidInterval`.
 

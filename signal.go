@@ -16,13 +16,15 @@ import (
 // ctx is done.
 //
 // If hook.Start fails, or if ctx is cancelled or a timer hook returns an
-// error, Timer calls hook.Stop with a fresh background context bounded by
-// timeout before returning. If that stop context expires and the stop hook
-// returns [context.Cause], the returned error matches [ErrTimeout]. Nil hook
-// callbacks are treated as no-ops.
+// error, the timer worker calls hook.Stop with a fresh background context
+// bounded by timeout. If that stop context expires and the stop hook returns
+// [context.Cause], the returned error matches [ErrTimeout]. Nil hook callbacks
+// are treated as no-ops.
 //
 // Timer executes its work through [Go], so a [Terminated] error still triggers
-// [Shutdown]. The interval must be greater than zero.
+// [Shutdown]. Because [Go] is a best-effort waiting helper, Timer may return
+// before the timer worker has run hook.Stop when ctx is cancelled or timeout
+// elapses first. The interval must be greater than zero.
 func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) error {
 	if interval <= 0 {
 		return fmt.Errorf("%w: %s", ErrInvalidInterval, interval)
