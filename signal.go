@@ -279,6 +279,8 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 //
 // Note: Serve takes ownership of SIGINT and SIGTERM for the process while it is
 // active. Other handlers for those signals will not run during that time.
+// Serve is intended to be used as a process-lifetime blocking call; callers
+// normally return from main and let the process exit after Serve returns.
 //
 // Because Serve resets and re-registers SIGINT and SIGTERM handling during
 // startup, there is a narrow handoff window in which an arriving signal may
