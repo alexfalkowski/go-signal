@@ -1,7 +1,6 @@
 # AGENTS.md
 
-Use `./bin/skills/coding-standards` for shared coding, review, test,
-documentation, and PR conventions. This file only adds repo-specific context.
+Use the shared `coding-standards` skill from `bin/skills/coding-standards` for code changes, bug fixes, refactors, reviews, tests, linting, documentation, PR summaries, commits, Makefile changes, CI validation, and verification.
 
 ## Repo
 
