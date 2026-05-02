@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 	"time"
 
@@ -346,8 +347,8 @@ func (l *Lifecycle) stopContext() (context.Context, context.CancelFunc) {
 func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
 	errs := make([]error, 0)
 
-	for i := len(hooks) - 1; i >= 0; i-- {
-		if err := hooks[i].Stop(ctx); err != nil {
+	for _, v := range slices.Backward(hooks) {
+		if err := v.Stop(ctx); err != nil {
 			errs = append(errs, err)
 		}
 	}
