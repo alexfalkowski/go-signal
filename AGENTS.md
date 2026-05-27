@@ -49,9 +49,10 @@ CI order: `make source-key`, `make clean`, `make dep`, `make clean`,
 - `Run`, `Serve`, and `Timer` use fresh timeout-bound background contexts for
   rollback/shutdown stop hooks. Returning `context.Cause(ctx)` from an expired
   stop context should match `signal.ErrTimeout`.
-- `Serve` is a process-lifetime blocking call: it resets and owns `SIGINT` and
-  `SIGTERM` while active, and shutdown can come from parent cancellation, an OS
-  signal, or `signal.Shutdown()`.
+- `Serve` is the final process-lifetime blocking call: it resets and owns
+  `SIGINT` and `SIGTERM`, does not restore prior signal handlers after
+  returning, and shutdown can come from parent cancellation, an OS signal, or
+  `signal.Shutdown()`.
 - `Shutdown` sends `os.Interrupt` to the current process.
 - `Terminated(err)` marks an error with `ErrTerminated`; `IsTerminated` checks
   it; `Go` calls `Shutdown()` when it sees one.

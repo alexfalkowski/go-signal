@@ -109,10 +109,10 @@ shutdown is requested.
 - During signal takeover, there is a narrow startup handoff window where an
   incoming `SIGINT` or `SIGTERM` may need to be sent again.
 
-`Serve` is intended to be used as a process-lifetime blocking call; callers
-normally return from `main` and let the process exit after `Serve` returns.
-While `Serve` is active it takes ownership of `SIGINT` and `SIGTERM`, so other
-signal handlers for those signals will not run during that time.
+`Serve` is intended to be used as the final process-lifetime blocking call. It
+takes ownership of `SIGINT` and `SIGTERM`, does not restore prior signal
+handlers after returning, and callers should normally return from `main` after
+`Serve` returns.
 
 ```go
 import (
