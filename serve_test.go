@@ -3,6 +3,8 @@ package signal_test
 import (
 	"context"
 	"errors"
+	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -47,19 +49,10 @@ func TestServeStartRollback(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 
-	done := make(chan error, 1)
-	go func() {
-		done <- signal.Serve(ctx)
-	}()
-
-	select {
-	case err := <-done:
-		require.ErrorIs(t, err, startErr1)
-		require.ErrorIs(t, err, startErr2)
-		require.ErrorIs(t, err, stopErr)
-	case <-time.After(100 * time.Millisecond):
-		require.Fail(t, "Serve blocked after startup failure")
-	}
+	err := signal.Serve(ctx)
+	require.ErrorIs(t, err, startErr1)
+	require.ErrorIs(t, err, startErr2)
+	require.ErrorIs(t, err, stopErr)
 
 	require.Equal(t, []string{
 		"start:1",
@@ -92,6 +85,26 @@ func TestServeStopOrder(t *testing.T) {
 
 	require.NoError(t, signal.Serve(ctx))
 	require.Equal(t, []string{"stop:3", "stop:2", "stop:1"}, events)
+}
+
+func TestServeSIGTERM(t *testing.T) {
+	started := make(chan struct{})
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			close(started)
+			return nil
+		},
+	})
+
+	go func() {
+		<-started
+		process, _ := os.FindProcess(os.Getpid())
+		_ = process.Signal(syscall.SIGTERM)
+	}()
+
+	require.NoError(t, signal.Serve(t.Context()))
 }
 
 func TestServeGoError(t *testing.T) {
@@ -156,6 +169,27 @@ func TestServeStopContextNoError(t *testing.T) {
 	}()
 
 	require.NoError(t, signal.Serve(t.Context()))
+}
+
+func TestServeStopTimeoutCause(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+
+	signal.SetDefault(signal.NewLifeCycle(time.Microsecond))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			cancel()
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			<-ctx.Done()
+			return context.Cause(ctx)
+		},
+	})
+
+	err := signal.Serve(ctx)
+
+	require.ErrorIs(t, err, signal.ErrTimeout)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestServeStartContext(t *testing.T) {
@@ -293,6 +327,37 @@ func TestTimerStartErrorStopsHook(t *testing.T) {
 	require.True(t, stopped)
 }
 
+func TestTimerCancelStopsHook(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	started := make(chan struct{})
+	stopped := make(chan struct{})
+	done := make(chan error, 1)
+
+	go func() {
+		done <- signal.Timer(ctx, time.Second, time.Millisecond, signal.Hook{
+			OnStart: func(context.Context) error {
+				close(started)
+				return nil
+			},
+			OnStop: func(context.Context) error {
+				close(stopped)
+				return nil
+			},
+		})
+	}()
+
+	<-started
+	cancel()
+
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		require.Fail(t, "Timer did not stop hook after cancellation")
+	}
+
+	require.NoError(t, <-done)
+}
+
 func TestTimerTickStopError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
@@ -314,22 +379,27 @@ func TestTimerTickStopError(t *testing.T) {
 }
 
 func TestTimerTickErrorStopsHook(t *testing.T) {
-	stopped := false
+	events := make([]string, 0, 3)
 	stopErr := errors.New("signal: timer tick stop error")
 
 	err := signal.Timer(t.Context(), time.Second, time.Millisecond, signal.Hook{
+		OnStart: func(context.Context) error {
+			events = append(events, "start")
+			return nil
+		},
 		OnTick: func(context.Context) error {
+			events = append(events, "tick")
 			return errServe
 		},
 		OnStop: func(context.Context) error {
-			stopped = true
+			events = append(events, "stop")
 			return stopErr
 		},
 	})
 
 	require.ErrorIs(t, err, errServe)
 	require.ErrorIs(t, err, stopErr)
-	require.True(t, stopped)
+	require.Equal(t, []string{"start", "tick", "stop"}, events)
 }
 
 func TestTimerTickError(t *testing.T) {
@@ -367,4 +437,12 @@ func TestTerminatedNil(t *testing.T) {
 
 	require.ErrorIs(t, err, signal.ErrTerminated)
 	require.EqualError(t, err, signal.ErrTerminated.Error())
+}
+
+func TestTerminatedError(t *testing.T) {
+	err := signal.Terminated(errServe)
+
+	require.True(t, signal.IsTerminated(err))
+	require.ErrorIs(t, err, signal.ErrTerminated)
+	require.ErrorIs(t, err, errServe)
 }

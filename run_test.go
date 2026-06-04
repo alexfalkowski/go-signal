@@ -23,6 +23,38 @@ func TestRunEmpty(t *testing.T) {
 	}))
 }
 
+func TestRunOrder(t *testing.T) {
+	events := make([]string, 0, 5)
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			events = append(events, "start:1")
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			events = append(events, "stop:1")
+			return nil
+		},
+	})
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			events = append(events, "start:2")
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			events = append(events, "stop:2")
+			return nil
+		},
+	})
+
+	require.NoError(t, signal.Run(t.Context(), func(context.Context) error {
+		events = append(events, "handler")
+		return nil
+	}))
+	require.Equal(t, []string{"start:1", "start:2", "handler", "stop:2", "stop:1"}, events)
+}
+
 func TestSetDefaultNilResetsLifecycle(t *testing.T) {
 	lifecycle := signal.NewLifeCycle(time.Minute)
 	lifecycle.Register(signal.Hook{
