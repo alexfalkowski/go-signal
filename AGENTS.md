@@ -41,7 +41,7 @@ CI order: `make source-key`, `make clean`, `make dep`, `make clean`,
 
 - The package stores a process-wide default `*Lifecycle` in
   `sync.Pointer[Lifecycle]`; `init()` sets it to `NewDefaultLifecycle()` with a
-  30 second stop timeout.
+  30-second stop timeout.
 - `Hook` callbacks are optional; `Start`, `Tick`, and `Stop` treat nil
   callbacks as no-ops.
 - `Lifecycle.Register` is setup-time only, before `Run` or `Serve`; it is not

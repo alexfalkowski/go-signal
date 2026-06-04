@@ -16,7 +16,7 @@ import (
 // Timer runs hook.Start once, then calls hook.Tick at the given interval until
 // ctx is done.
 //
-// If hook.Start fails, or if ctx is cancelled or a timer hook returns an
+// If hook.Start fails, or if ctx is canceled or a timer hook returns an
 // error, the timer worker calls hook.Stop with a fresh background context
 // bounded by timeout. If that stop context expires and the stop hook returns
 // [context.Cause], the returned error matches [ErrTimeout]. Nil hook callbacks
@@ -24,7 +24,7 @@ import (
 //
 // Timer executes its work through [Go], so a [Terminated] error still triggers
 // [Shutdown]. Because [Go] is a best-effort waiting helper, Timer may return
-// before the timer worker has run hook.Stop when ctx is cancelled or timeout
+// before the timer worker has run hook.Stop when ctx is canceled or timeout
 // elapses first. The interval must be greater than zero.
 func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) error {
 	if interval <= 0 {
@@ -229,8 +229,8 @@ type Lifecycle struct {
 
 // Register adds a hook to this lifecycle.
 //
-// Note: Lifecycle is not designed to be used concurrently. Register during setup (typically in
-// main), before calling Run or Serve.
+// Note: Lifecycle is not designed to be used concurrently. Register during
+// setup, typically in main, before calling [Lifecycle.Run] or [Lifecycle.Serve].
 func (l *Lifecycle) Register(h Hook) {
 	l.hooks = append(l.hooks, h)
 }
@@ -271,7 +271,7 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 // until the notification context is done. If startup fails, Serve still
 // attempts the remaining start hooks, then rolls back successfully started hooks
 // in reverse registration order with a fresh background context bounded by the
-// lifecycle timeout. Shutdown can happen because the parent ctx is cancelled,
+// lifecycle timeout. Shutdown can happen because the parent ctx is canceled,
 // because the process receives SIGINT or SIGTERM, or because [Shutdown]
 // delivers an interrupt to the current process.
 //
@@ -291,7 +291,7 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 func (l *Lifecycle) Serve(ctx context.Context) error {
 	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
 
-	// Reset and ignore signals that were set before, to only capture the ones set after Serve is called.
+	// Reset and ignore prior handlers so Serve only captures signals delivered after it starts.
 	signal.Reset(signals...)
 	signal.Ignore(signals...)
 
@@ -347,8 +347,8 @@ func (l *Lifecycle) stopContext() (context.Context, context.CancelFunc) {
 func (l *Lifecycle) stop(ctx context.Context, hooks []Hook) error {
 	errs := make([]error, 0)
 
-	for _, v := range slices.Backward(hooks) {
-		if err := v.Stop(ctx); err != nil {
+	for _, hook := range slices.Backward(hooks) {
+		if err := hook.Stop(ctx); err != nil {
 			errs = append(errs, err)
 		}
 	}
