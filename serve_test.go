@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var errServe = errors.New("signal: serve error")
+var errSignal = errors.New("signal: test error")
 
 func TestServeEmpty(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
@@ -31,7 +31,7 @@ func TestServeStartError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStart: func(context.Context) error {
-			return errServe
+			return errSignal
 		},
 	})
 
@@ -39,20 +39,20 @@ func TestServeStartError(t *testing.T) {
 }
 
 func TestServeStartRollback(t *testing.T) {
-	startErr1 := errors.New("signal: serve start error 1")
-	startErr2 := errors.New("signal: serve start error 2")
-	stopErr := errors.New("signal: serve stop error")
+	hook2StartErr := errors.New("signal: serve hook 2 start error")
+	hook3StopErr := errors.New("signal: serve hook 3 stop error")
+	hook4StartErr := errors.New("signal: serve hook 4 start error")
 
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	events := test.RegisterRollbackHooks(startErr1, startErr2, stopErr)
+	events := test.RegisterRollbackHooks(hook2StartErr, hook3StopErr, hook4StartErr)
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 
 	err := signal.Serve(ctx)
-	require.ErrorIs(t, err, startErr1)
-	require.ErrorIs(t, err, startErr2)
-	require.ErrorIs(t, err, stopErr)
+	require.ErrorIs(t, err, hook2StartErr)
+	require.ErrorIs(t, err, hook3StopErr)
+	require.ErrorIs(t, err, hook4StartErr)
 
 	require.Equal(t, []string{
 		"start:1",
@@ -112,7 +112,7 @@ func TestServeGoError(t *testing.T) {
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return signal.Go(ctx, time.Minute, func(context.Context) error {
-				return errServe
+				return errSignal
 			})
 		},
 	})
@@ -131,7 +131,7 @@ func TestServeGoTerminated(t *testing.T) {
 		OnStart: func(ctx context.Context) error {
 			return signal.Go(ctx, time.Second, func(context.Context) error {
 				time.Sleep(2 * time.Second)
-				return signal.Terminated(errServe)
+				return signal.Terminated(errSignal)
 			})
 		},
 	})
@@ -143,7 +143,7 @@ func TestServeStopError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStop: func(context.Context) error {
-			return errServe
+			return errSignal
 		},
 	})
 
@@ -193,14 +193,14 @@ func TestServeStopTimeoutCause(t *testing.T) {
 }
 
 func TestServeStartContext(t *testing.T) {
-	ch := make(chan bool, 1)
+	canceled := make(chan struct{})
 
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return signal.Go(ctx, time.Second, func(ctx context.Context) error {
 				<-ctx.Done()
-				ch <- true
+				close(canceled)
 				return nil
 			})
 		},
@@ -212,11 +212,11 @@ func TestServeStartContext(t *testing.T) {
 	}()
 
 	require.NoError(t, signal.Serve(t.Context()))
-	require.True(t, <-ch)
+	<-canceled
 }
 
 func TestServeStartLoopContext(t *testing.T) {
-	ch := make(chan bool, 1)
+	canceled := make(chan struct{})
 
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
@@ -225,7 +225,7 @@ func TestServeStartLoopContext(t *testing.T) {
 				for {
 					select {
 					case <-ctx.Done():
-						ch <- true
+						close(canceled)
 						return nil
 					default:
 						time.Sleep(time.Millisecond)
@@ -241,7 +241,7 @@ func TestServeStartLoopContext(t *testing.T) {
 	}()
 
 	require.NoError(t, signal.Serve(t.Context()))
-	require.True(t, <-ch)
+	<-canceled
 }
 
 func TestTimerWithTick(t *testing.T) {
@@ -294,7 +294,7 @@ func TestTimerStartError(t *testing.T) {
 			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
 				OnStart: func(context.Context) error {
 					time.Sleep(10 * time.Millisecond)
-					return errServe
+					return errSignal
 				},
 			})
 		},
@@ -314,7 +314,7 @@ func TestTimerStartErrorStopsHook(t *testing.T) {
 
 	err := signal.Timer(t.Context(), time.Second, time.Millisecond, signal.Hook{
 		OnStart: func(context.Context) error {
-			return errServe
+			return errSignal
 		},
 		OnStop: func(context.Context) error {
 			stopped = true
@@ -322,7 +322,7 @@ func TestTimerStartErrorStopsHook(t *testing.T) {
 		},
 	})
 
-	require.ErrorIs(t, err, errServe)
+	require.ErrorIs(t, err, errSignal)
 	require.ErrorIs(t, err, stopErr)
 	require.True(t, stopped)
 }
@@ -364,7 +364,7 @@ func TestTimerTickStopError(t *testing.T) {
 		OnStart: func(ctx context.Context) error {
 			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
 				OnStop: func(context.Context) error {
-					return errServe
+					return errSignal
 				},
 			})
 		},
@@ -389,7 +389,7 @@ func TestTimerTickErrorStopsHook(t *testing.T) {
 		},
 		OnTick: func(context.Context) error {
 			events = append(events, "tick")
-			return errServe
+			return errSignal
 		},
 		OnStop: func(context.Context) error {
 			events = append(events, "stop")
@@ -397,7 +397,7 @@ func TestTimerTickErrorStopsHook(t *testing.T) {
 		},
 	})
 
-	require.ErrorIs(t, err, errServe)
+	require.ErrorIs(t, err, errSignal)
 	require.ErrorIs(t, err, stopErr)
 	require.Equal(t, []string{"start", "tick", "stop"}, events)
 }
@@ -408,7 +408,7 @@ func TestTimerTickError(t *testing.T) {
 		OnStart: func(ctx context.Context) error {
 			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
 				OnTick: func(context.Context) error {
-					return errServe
+					return errSignal
 				},
 			})
 		},
@@ -440,9 +440,9 @@ func TestTerminatedNil(t *testing.T) {
 }
 
 func TestTerminatedError(t *testing.T) {
-	err := signal.Terminated(errServe)
+	err := signal.Terminated(errSignal)
 
 	require.True(t, signal.IsTerminated(err))
 	require.ErrorIs(t, err, signal.ErrTerminated)
-	require.ErrorIs(t, err, errServe)
+	require.ErrorIs(t, err, errSignal)
 }

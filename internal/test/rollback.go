@@ -12,9 +12,9 @@ import (
 // The registered hooks always attempt startup in this order:
 //
 //   - hook 1 starts successfully and stops successfully
-//   - hook 2 fails during start with startErr1
-//   - hook 3 starts successfully and fails during stop with stopErr
-//   - hook 4 fails during start with startErr2
+//   - hook 2 fails during start with hook2StartErr
+//   - hook 3 starts successfully and fails during stop with hook3StopErr
+//   - hook 4 fails during start with hook4StartErr
 //
 // Each hook appends its start and stop activity to the returned slice so callers
 // can assert the exact execution order. The returned pointer remains valid for
@@ -26,8 +26,8 @@ import (
 //   - rolls back only successfully started hooks
 //   - preserves reverse registration order during rollback
 //   - joins startup and rollback errors
-func RegisterRollbackHooks(startErr1, startErr2, stopErr error) *[]string {
-	events := make([]string, 0)
+func RegisterRollbackHooks(hook2StartErr, hook3StopErr, hook4StartErr error) *[]string {
+	events := make([]string, 0, 6)
 
 	signal.Register(signal.Hook{
 		OnStart: func(context.Context) error {
@@ -42,7 +42,7 @@ func RegisterRollbackHooks(startErr1, startErr2, stopErr error) *[]string {
 	signal.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			events = append(events, "start:2")
-			return startErr1
+			return hook2StartErr
 		},
 		OnStop: func(context.Context) error {
 			events = append(events, "stop:2")
@@ -56,13 +56,13 @@ func RegisterRollbackHooks(startErr1, startErr2, stopErr error) *[]string {
 		},
 		OnStop: func(context.Context) error {
 			events = append(events, "stop:3")
-			return stopErr
+			return hook3StopErr
 		},
 	})
 	signal.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			events = append(events, "start:4")
-			return startErr2
+			return hook4StartErr
 		},
 		OnStop: func(context.Context) error {
 			events = append(events, "stop:4")

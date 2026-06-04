@@ -129,22 +129,22 @@ func TestRunStartError(t *testing.T) {
 }
 
 func TestRunStartRollback(t *testing.T) {
-	startErr1 := errors.New("signal: run start error 1")
-	startErr2 := errors.New("signal: run start error 2")
-	stopErr := errors.New("signal: run stop error")
+	hook2StartErr := errors.New("signal: run hook 2 start error")
+	hook3StopErr := errors.New("signal: run hook 3 stop error")
+	hook4StartErr := errors.New("signal: run hook 4 start error")
 	handlerCalled := false
 
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	events := test.RegisterRollbackHooks(startErr1, startErr2, stopErr)
+	events := test.RegisterRollbackHooks(hook2StartErr, hook3StopErr, hook4StartErr)
 
 	err := signal.Run(t.Context(), func(context.Context) error {
 		handlerCalled = true
 		return nil
 	})
 
-	require.ErrorIs(t, err, startErr1)
-	require.ErrorIs(t, err, startErr2)
-	require.ErrorIs(t, err, stopErr)
+	require.ErrorIs(t, err, hook2StartErr)
+	require.ErrorIs(t, err, hook3StopErr)
+	require.ErrorIs(t, err, hook4StartErr)
 	require.False(t, handlerCalled)
 	require.Equal(t, []string{
 		"start:1",
