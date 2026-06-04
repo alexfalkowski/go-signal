@@ -17,6 +17,9 @@ matching skill for the task.
 - Public surface includes lifecycle helpers (`Register`, `Run`, `Serve`,
   `Shutdown`, `Go`, `Timer`), lifecycle constructors/defaults, hooks, and
   sentinel helpers/errors.
+- `cmd/main.go` is a manual testing script for `make run`, not production
+  surface. Do not require `cmd/main_test.go` or raise missing command coverage
+  for `cmd/main.go` during `$test-gaps` reviews.
 
 ## Commands
 
@@ -63,6 +66,7 @@ CI order: `make source-key`, `make clean`, `make dep`, `make clean`,
 ## Tests
 
 - Tests use external package `signal_test` and commonly pass `t.Context()`.
+- Do not add tests for `cmd/main.go`; it is only a manual testing script.
 - Several `Serve` and `Timer` tests intentionally unblock via
   `signal.Shutdown()` after `time.Sleep(time.Second)`; they are
   timing-sensitive by design.
