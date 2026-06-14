@@ -25,6 +25,8 @@ contexts and timer stop hooks. It wraps `sync.ErrTimeout`, which in turn wraps
 
 ## 📦 Install
 
+Use the Go toolchain version declared in [go.mod](go.mod).
+
 ```sh
 go get github.com/alexfalkowski/go-signal
 ```
@@ -69,9 +71,11 @@ signal.Register(signal.Hook{
   by the lifecycle timeout.
 - If a rollback or stop hook returns `context.Cause(ctx)` after that stop
   context expires, the returned error matches `signal.ErrTimeout`.
-- After successful startup, `Run` always runs stop hooks, even if the handler
-  fails, in reverse registration order.
+- After successful startup, `Run` always runs stop hooks when the handler
+  returns, even if it returns an error, in reverse registration order.
 - Startup, handler, and stop-hook errors are combined with `errors.Join`.
+- `Run` does not recover panics from hooks or the handler, so panic recovery
+  should live in application code when cleanup must be guaranteed.
 
 ```go
 import (
@@ -175,6 +179,8 @@ background work that should share a lifecycle context.
 
 - `Go` only reports errors observed before its timeout or parent context
   cancellation.
+- If the parent context is already done or the timeout is not positive, `Go`
+  returns nil without starting the handler.
 - If the worker keeps running after that waiting window, later non-terminated
   errors are not returned to the caller.
 - If the handler returns an error marked with `signal.Terminated(err)`, `Go`
@@ -210,7 +216,10 @@ err := signal.Go(context.Background(), 5*time.Second, func(context.Context) erro
 
 Because `Timer` executes through `Go`, it uses best-effort waiting semantics:
 when the parent context is canceled or the wait timeout elapses first, `Timer`
-may return before the timer worker has run `hook.OnStop`.
+may return before the timer worker has run `hook.OnStop`, and late
+non-terminated hook errors are not returned to the caller. With a valid
+interval, if the parent context is already done or the timeout is not positive,
+the timer worker does not start.
 
 The interval must be greater than zero or `Timer` returns `ErrInvalidInterval`.
 
@@ -247,6 +256,10 @@ signal.Register(signal.Hook{
 Use `NewLifeCycle` when you need a custom stop timeout. Use
 `NewDefaultLifecycle` when you want the same 30-second timeout as the
 package-level default, but on your own lifecycle instance.
+
+Use a positive custom stop timeout. A zero or negative timeout creates an
+already-expired stop context, so stop hooks that observe the context may return
+`signal.ErrTimeout` immediately.
 
 Use `SetDefault` when package-level helpers such as `Register`, `Run`, and
 `Serve` should target a custom lifecycle. Passing `nil` to `SetDefault` restores
@@ -287,10 +300,12 @@ err := signal.Run(context.Background(), func(context.Context) error {
 ## 🧪 Example
 
 See [cmd/main.go](cmd/main.go) for a runnable example covering `Serve`, `Go`,
-`Timer`, and termination-triggered shutdown.
+`Timer`, and termination-triggered shutdown. It is a manual `make run` example,
+not an installed or production CLI.
 
 Initialize the shared `bin` tooling first when running Make targets from a
-fresh clone:
+fresh clone. The submodule uses GitHub SSH, so SSH access must be configured
+before this step:
 
 ```sh
 git submodule sync
