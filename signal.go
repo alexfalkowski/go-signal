@@ -16,6 +16,9 @@ import (
 // Timer runs hook.Start once, then calls hook.Tick at the given interval until
 // ctx is done.
 //
+// With a valid interval, if ctx is already done on entry or timeout is not
+// positive, Timer returns nil without starting the timer worker.
+//
 // If hook.Start fails, or if ctx is canceled or a timer hook returns an
 // error, the timer worker calls hook.Stop with a fresh background context
 // bounded by timeout. If that stop context expires and the stop hook returns
@@ -25,7 +28,8 @@ import (
 // Timer executes its work through [Go], so a [Terminated] error still triggers
 // [Shutdown]. Because [Go] is a best-effort waiting helper, Timer may return
 // before the timer worker has run hook.Stop when ctx is canceled or timeout
-// elapses first. The interval must be greater than zero.
+// elapses first, and late non-terminated hook errors are not returned to the
+// caller. The interval must be greater than zero.
 func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) error {
 	if interval <= 0 {
 		return fmt.Errorf("%w: %s", ErrInvalidInterval, interval)
@@ -91,6 +95,11 @@ func IsTerminated(err error) bool {
 // Go is a best-effort waiting helper. If timeout elapses or ctx is done first,
 // Go returns nil immediately while handler may continue running in the
 // background.
+//
+// If ctx is already done on entry or timeout is not positive, Go returns nil
+// without invoking handler.
+//
+// If handler is nil, Go returns [sync.ErrNoOnRunProvided].
 //
 // If handler returns an error marked with [ErrTerminated], Go triggers
 // [Shutdown] before returning the error. If that terminated error arrives after
@@ -216,7 +225,10 @@ func NewDefaultLifecycle() *Lifecycle {
 // timeout.
 //
 // The stop timeout is used by [Lifecycle.Run] and [Lifecycle.Serve] when
-// running stop hooks during rollback and shutdown.
+// running stop hooks during rollback and shutdown. It is passed directly to
+// [context.WithTimeoutCause], so a non-positive timeout creates an
+// already-expired stop context. Use a positive duration when stop hooks need
+// time to clean up.
 func NewLifeCycle(timeout time.Duration) *Lifecycle {
 	return &Lifecycle{hooks: make([]Hook, 0), timeout: timeout}
 }
@@ -249,6 +261,9 @@ func (l *Lifecycle) Register(h Hook) {
 // hook in reverse registration order with the same kind of fresh shutdown
 // context. If a stop hook returns [context.Cause] after that context expires,
 // the returned error matches [ErrTimeout].
+//
+// Run requires a non-nil handler. It does not recover panics from start hooks,
+// the handler, or stop hooks; stop hooks run after the handler returns.
 //
 // Startup, handler, and stop-hook errors are combined with [errors.Join].
 func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
