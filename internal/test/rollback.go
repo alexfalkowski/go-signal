@@ -9,12 +9,19 @@ import (
 // RegisterRollbackHooks registers a fixed set of lifecycle hooks that exercise
 // startup rollback behavior and returns the event log used by those hooks.
 //
+// The hooks are registered on the package-level default lifecycle through
+// signal.Register. Callers should install the desired default lifecycle before
+// calling this helper.
+//
 // The registered hooks always attempt startup in this order:
 //
 //   - hook 1 starts successfully and stops successfully
 //   - hook 2 fails during start with hook2StartErr
 //   - hook 3 starts successfully and fails during stop with hook3StopErr
 //   - hook 4 fails during start with hook4StartErr
+//
+// The rollback and error-join scenario assumes hook2StartErr, hook3StopErr, and
+// hook4StartErr are non-nil.
 //
 // Each hook appends its start and stop activity to the returned slice so callers
 // can assert the exact execution order. The returned pointer remains valid for

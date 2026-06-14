@@ -110,6 +110,8 @@ shutdown is requested.
   lifecycle timeout in reverse registration order.
 - If a stop hook returns `context.Cause(ctx)` after that stop context expires,
   the returned error matches `signal.ErrTimeout`.
+- Normal shutdown from parent cancellation, `SIGINT`, `SIGTERM`, or `Shutdown()`
+  returns nil unless startup, rollback, or stop hooks return errors.
 - During signal takeover, there is a narrow startup handoff window where an
   incoming `SIGINT` or `SIGTERM` may need to be sent again.
 
