@@ -183,6 +183,9 @@ func SetDefault(l *Lifecycle) {
 }
 
 // Register adds h to the default [Lifecycle].
+//
+// Register during setup, typically in main, before calling [Run] or [Serve].
+// Registration is not designed to be used concurrently.
 func Register(h Hook) {
 	Default().Register(h)
 }
@@ -197,7 +200,8 @@ func Serve(ctx context.Context) error {
 	return Default().Serve(ctx)
 }
 
-// Shutdown calls [Lifecycle.Shutdown] on the default [Lifecycle].
+// Shutdown sends an [os.Interrupt] signal to the current process through the
+// default [Lifecycle].
 func Shutdown() error {
 	return Default().Shutdown()
 }
@@ -279,6 +283,9 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 // order with a fresh background context bounded by the lifecycle timeout
 // configured by [NewLifeCycle]. If a stop hook returns [context.Cause] after
 // that context expires, the returned error matches [ErrTimeout].
+//
+// Normal shutdown from parent cancellation, SIGINT, SIGTERM, or [Shutdown]
+// returns nil unless startup, rollback, or stop hooks return errors.
 //
 // Note: Serve is intended to be used as the final process-lifetime blocking
 // call. It takes ownership of SIGINT and SIGTERM, does not restore prior signal

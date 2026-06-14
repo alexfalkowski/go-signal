@@ -13,7 +13,7 @@ import (
 
 var logger = slog.Default()
 
-const usageMessage = "usage: go run cmd/main.go [start|timer|terminate]"
+const usageMessage = "usage: make run param=start|timer|terminate"
 
 var (
 	errUsage       = errors.New(usageMessage)
