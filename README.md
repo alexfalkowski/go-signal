@@ -114,6 +114,9 @@ shutdown is requested.
   returns nil unless startup, rollback, or stop hooks return errors.
 - During signal takeover, there is a narrow startup handoff window where an
   incoming `SIGINT` or `SIGTERM` may need to be sent again.
+- If background work should stop the process after `Go`'s wait window has
+  elapsed, wrap its error with `signal.Terminated(err)` so `Go` can request
+  shutdown from the background goroutine.
 
 > [!NOTE]
 > `Serve` is intended to be used as the final process-lifetime blocking call.
@@ -143,7 +146,7 @@ signal.Register(signal.Hook{
 
         return signal.Go(ctx, time.Second, func(context.Context) error {
             if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-                return err
+                return signal.Terminated(err)
             }
 
             return nil
@@ -285,6 +288,14 @@ err := signal.Run(context.Background(), func(context.Context) error {
 
 See [cmd/main.go](cmd/main.go) for a runnable example covering `Serve`, `Go`,
 `Timer`, and termination-triggered shutdown.
+
+Initialize the shared `bin` tooling first when running Make targets from a
+fresh clone:
+
+```sh
+git submodule sync
+git submodule update --init
+```
 
 ```sh
 make run param=terminate
