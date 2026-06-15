@@ -29,7 +29,8 @@ import (
 // [Shutdown]. Because [Go] is a best-effort waiting helper, Timer may return
 // before the timer worker has run hook.Stop when ctx is canceled or timeout
 // elapses first, and late non-terminated hook errors are not returned to the
-// caller. The interval must be greater than zero.
+// caller. The interval must be greater than zero or Timer returns
+// [ErrInvalidInterval].
 func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) error {
 	if interval <= 0 {
 		return fmt.Errorf("%w: %s", ErrInvalidInterval, interval)
@@ -62,8 +63,8 @@ var ErrInvalidInterval = errors.New("signal: invalid interval")
 
 // ErrTimeout is the timeout cause used by derived stop contexts in this package.
 //
-// It wraps [sync.ErrTimeout], so [errors.Is] also matches
-// [context.DeadlineExceeded].
+// It wraps [sync.ErrTimeout] from github.com/alexfalkowski/go-sync, so
+// [errors.Is] also matches [context.DeadlineExceeded].
 var ErrTimeout = fmt.Errorf("signal: %w", sync.ErrTimeout)
 
 // ErrTerminated marks an error as requesting process shutdown.
@@ -238,6 +239,9 @@ func NewLifeCycle(timeout time.Duration) *Lifecycle {
 // A lifecycle is usually configured during application setup by calling
 // [Lifecycle.Register], then executed through [Lifecycle.Run] or
 // [Lifecycle.Serve].
+//
+// Use [NewLifeCycle] or [NewDefaultLifecycle] to construct a lifecycle. The zero
+// value has a zero stop timeout, so stop contexts are already expired.
 type Lifecycle struct {
 	hooks   []Hook
 	timeout time.Duration
@@ -262,8 +266,9 @@ func (l *Lifecycle) Register(h Hook) {
 // context. If a stop hook returns [context.Cause] after that context expires,
 // the returned error matches [ErrTimeout].
 //
-// Run requires a non-nil handler. It does not recover panics from start hooks,
-// the handler, or stop hooks; stop hooks run after the handler returns.
+// Run requires a non-nil handler; passing nil panics when Run invokes it. It
+// does not recover panics from start hooks, the handler, or stop hooks; stop
+// hooks run after the handler returns.
 //
 // Startup, handler, and stop-hook errors are combined with [errors.Join].
 func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
