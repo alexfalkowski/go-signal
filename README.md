@@ -20,8 +20,8 @@ The package-level helpers operate on a process-wide default lifecycle initialize
 with `NewDefaultLifecycle()`, which uses a 30-second stop timeout.
 
 `signal.ErrTimeout` is the package-owned timeout cause used for lifecycle stop
-contexts and timer stop hooks. It wraps `sync.ErrTimeout`, which in turn wraps
-`context.DeadlineExceeded`.
+contexts and timer stop hooks. It wraps `github.com/alexfalkowski/go-sync`'s
+`sync.ErrTimeout`, which in turn wraps `context.DeadlineExceeded`.
 
 ## 📦 Install
 

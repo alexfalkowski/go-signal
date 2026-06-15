@@ -23,9 +23,9 @@ import (
 // The rollback and error-join scenario assumes hook2StartErr, hook3StopErr, and
 // hook4StartErr are non-nil.
 //
-// Each hook appends its start and stop activity to the returned slice so callers
-// can assert the exact execution order. The returned pointer remains valid for
-// the lifetime of the test because the closures capture the underlying slice.
+// Each hook appends its start and stop activity to the captured events slice, so
+// callers can inspect the returned pointer after running the lifecycle and
+// assert the exact execution order.
 //
 // This helper is intended for tests that need to verify that startup:
 //
