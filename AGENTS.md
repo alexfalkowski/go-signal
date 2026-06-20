@@ -23,10 +23,8 @@ Use `bin/AGENTS.md` for shared skills and cross-repository defaults.
 
 Initialize shared tooling first when needed:
 
-```sh
-git submodule sync
-git submodule update --init
-```
+Use `make submodule` once the shared `bin` checkout is present; see
+`bin/AGENTS.md` for fresh-clone bootstrap details.
 
 Common targets: `make dep`, `make lint`, `make sec`, `make specs`,
 `make coverage`, `make run param=start|timer|terminate`.
