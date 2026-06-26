@@ -117,11 +117,6 @@ func TestServeGoError(t *testing.T) {
 		},
 	})
 
-	go func() {
-		time.Sleep(time.Second)
-		_ = signal.Shutdown()
-	}()
-
 	require.Error(t, signal.Serve(t.Context()))
 }
 
@@ -136,7 +131,73 @@ func TestServeGoTerminated(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, signal.Serve(t.Context()))
+	err := signal.Serve(t.Context())
+
+	require.ErrorIs(t, err, errSignal)
+	require.ErrorIs(t, err, signal.ErrTerminated)
+}
+
+func TestServeTerminate(t *testing.T) {
+	started := make(chan struct{})
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			close(started)
+			return nil
+		},
+	})
+
+	go func() {
+		<-started
+		_ = signal.Terminate(errSignal)
+	}()
+
+	err := signal.Serve(t.Context())
+
+	require.ErrorIs(t, err, errSignal)
+}
+
+func TestServeTerminateNil(t *testing.T) {
+	started := make(chan struct{})
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			close(started)
+			return nil
+		},
+	})
+
+	go func() {
+		<-started
+		_ = signal.Terminate(nil)
+	}()
+
+	err := signal.Serve(t.Context())
+
+	require.ErrorIs(t, err, signal.ErrTerminated)
+}
+
+func TestLifecycleTerminate(t *testing.T) {
+	started := make(chan struct{})
+	lifecycle := signal.NewLifeCycle(time.Minute)
+
+	lifecycle.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			close(started)
+			return nil
+		},
+	})
+
+	go func() {
+		<-started
+		_ = lifecycle.Terminate(errSignal)
+	}()
+
+	err := lifecycle.Serve(t.Context())
+
+	require.ErrorIs(t, err, errSignal)
 }
 
 func TestServeStopError(t *testing.T) {

@@ -70,7 +70,7 @@ var ErrTimeout = fmt.Errorf("signal: %w", sync.ErrTimeout)
 // ErrTerminated marks an error as requesting process shutdown.
 //
 // Use [Terminated] to wrap an application error with this sentinel so that
-// [IsTerminated] reports true and [Go] can trigger [Shutdown].
+// [IsTerminated] reports true and [Go] can trigger [Terminate].
 var ErrTerminated = errors.New("signal: terminated")
 
 // Terminated wraps err so that [IsTerminated] reports true.
@@ -103,8 +103,8 @@ func IsTerminated(err error) bool {
 // If handler is nil, Go returns [sync.ErrNoOnRunProvided].
 //
 // If handler returns an error marked with [ErrTerminated], Go triggers
-// [Shutdown] before returning the error. If that terminated error arrives after
-// the waiting window has elapsed, Shutdown is still triggered from the
+// [Terminate] before returning the error. If that terminated error arrives after
+// the waiting window has elapsed, Terminate is still triggered from the
 // background goroutine, but Go has already returned nil. Other late errors are
 // not returned to the caller.
 func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
@@ -112,7 +112,7 @@ func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
 		OnRun: sync.Handler(handler),
 		OnError: func(_ context.Context, err error) error {
 			if IsTerminated(err) {
-				_ = Shutdown()
+				_ = Terminate(err)
 			}
 
 			return err
@@ -216,6 +216,17 @@ func Shutdown() error {
 	return Default().Shutdown()
 }
 
+// Terminate records err as the default [Lifecycle]'s shutdown cause and sends an
+// [os.Interrupt] signal to the current process.
+//
+// Terminate is useful when background work should stop a running [Serve] loop
+// and have Serve return the terminating cause. A nil err records
+// [ErrTerminated]. A non-nil err is marked with [ErrTerminated] unless it is
+// already marked.
+func Terminate(err error) error {
+	return Default().Terminate(err)
+}
+
 // NewDefaultLifecycle returns a new empty [Lifecycle] with the package's
 // default 30-second stop timeout.
 func NewDefaultLifecycle() *Lifecycle {
@@ -243,8 +254,10 @@ func NewLifeCycle(timeout time.Duration) *Lifecycle {
 // Use [NewLifeCycle] or [NewDefaultLifecycle] to construct a lifecycle. The zero
 // value has a zero stop timeout, so stop contexts are already expired.
 type Lifecycle struct {
+	cause   error
 	hooks   []Hook
 	timeout time.Duration
+	mu      sync.Mutex
 }
 
 // Register adds a hook to this lifecycle.
@@ -296,8 +309,9 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 // attempts the remaining start hooks, then rolls back successfully started hooks
 // in reverse registration order with a fresh background context bounded by the
 // lifecycle timeout. Shutdown can happen because the parent ctx is canceled,
-// because the process receives SIGINT or SIGTERM, or because [Shutdown]
-// delivers an interrupt to the current process.
+// because the process receives SIGINT or SIGTERM, because [Shutdown] delivers
+// an interrupt to the current process, or because [Terminate] records a cause
+// and delivers an interrupt.
 //
 // After shutdown is requested, Serve runs stop hooks in reverse registration
 // order with a fresh background context bounded by the lifecycle timeout
@@ -306,6 +320,8 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 //
 // Normal shutdown from parent cancellation, SIGINT, SIGTERM, or [Shutdown]
 // returns nil unless startup, rollback, or stop hooks return errors.
+// Shutdown from [Terminate] returns the terminating cause joined with any
+// stop-hook errors.
 //
 // Note: Serve is intended to be used as the final process-lifetime blocking
 // call. It takes ownership of SIGINT and SIGTERM, does not restore prior signal
@@ -324,6 +340,7 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 
 	notifyCtx, stop := signal.NotifyContext(ctx, signals...)
 	defer stop()
+	l.setTerminationCause(nil)
 
 	started, err := l.start(notifyCtx)
 	if err != nil {
@@ -339,7 +356,7 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 	stopCtx, cancel := l.stopContext()
 	defer cancel()
 
-	return l.stop(stopCtx, l.hooks)
+	return errors.Join(l.terminationCause(), l.stop(stopCtx, l.hooks))
 }
 
 // Shutdown sends an [os.Interrupt] signal to the current process.
@@ -349,6 +366,18 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 func (l *Lifecycle) Shutdown() error {
 	process, _ := os.FindProcess(os.Getpid())
 	return process.Signal(os.Interrupt)
+}
+
+// Terminate records err as this lifecycle's shutdown cause and sends an
+// [os.Interrupt] signal to the current process.
+//
+// Terminate differs from [Lifecycle.Shutdown] by preserving a non-nil cause for
+// [Lifecycle.Serve] to return after stop hooks run. A nil err records
+// [ErrTerminated]. A non-nil err is marked with [ErrTerminated] unless it is
+// already marked.
+func (l *Lifecycle) Terminate(err error) error {
+	l.setTerminationCause(terminationError(err))
+	return l.Shutdown()
 }
 
 func (l *Lifecycle) start(ctx context.Context) ([]Hook, error) {
@@ -365,6 +394,20 @@ func (l *Lifecycle) start(ctx context.Context) ([]Hook, error) {
 	}
 
 	return started, errors.Join(errs...)
+}
+
+func (l *Lifecycle) setTerminationCause(err error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.cause = err
+}
+
+func (l *Lifecycle) terminationCause() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.cause
 }
 
 func (l *Lifecycle) stopContext() (context.Context, context.CancelFunc) {
@@ -388,4 +431,14 @@ func stopHook(timeout time.Duration, hook Hook) error {
 	defer cancel()
 
 	return hook.Stop(stopCtx)
+}
+
+func terminationError(err error) error {
+	if err == nil {
+		return ErrTerminated
+	}
+	if IsTerminated(err) {
+		return err
+	}
+	return Terminated(err)
 }

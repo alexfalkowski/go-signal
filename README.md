@@ -116,6 +116,8 @@ shutdown is requested.
   the returned error matches `signal.ErrTimeout`.
 - Normal shutdown from parent cancellation, `SIGINT`, `SIGTERM`, or `Shutdown()`
   returns nil unless startup, rollback, or stop hooks return errors.
+- Shutdown from `Terminate(err)` returns the terminating cause, joined with any
+  stop-hook errors.
 - During signal takeover, there is a narrow startup handoff window where an
   incoming `SIGINT` or `SIGTERM` may need to be sent again.
 - If background work should stop the process after `Go`'s wait window has
@@ -170,6 +172,16 @@ err := signal.Serve(context.Background())
 lifecycle. It is mainly useful for programmatic shutdown, such as from tests or
 from a background goroutine that wants to stop a running `Serve` loop.
 
+### 🧯 Terminate
+
+`Terminate` records a shutdown cause on the default lifecycle, then sends
+`os.Interrupt` to the current process. Use it when background work should stop a
+running `Serve` loop and have `Serve` return the terminating cause after stop
+hooks run.
+
+Passing `nil` records `ErrTerminated`. Passing a non-nil error marks it with
+`ErrTerminated` unless it is already marked.
+
 ## 🧰 Background helpers
 
 ### 🚀 Go
@@ -184,9 +196,9 @@ background work that should share a lifecycle context.
 - If the worker keeps running after that waiting window, later non-terminated
   errors are not returned to the caller.
 - If the handler returns an error marked with `signal.Terminated(err)`, `Go`
-  triggers `Shutdown()` before returning the error.
+  triggers `Terminate(err)` before returning the error.
 - If that terminated error happens after the waiting window has elapsed,
-  `Shutdown()` is still triggered, but `Go` has already returned `nil`.
+  `Terminate(err)` is still triggered, but `Go` has already returned `nil`.
 
 ```go
 import (
