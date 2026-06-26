@@ -13,7 +13,7 @@ Use `bin/AGENTS.md` for shared skills and cross-repository defaults.
 - Main files: `signal.go`, `run_test.go`, `serve_test.go`, `signal_test.go`,
   `internal/test/`, `cmd/main.go`, `README.md`, `.circleci/config.yml`.
 - Public surface includes lifecycle helpers (`Register`, `Run`, `Serve`,
-  `Shutdown`, `Go`, `Timer`), lifecycle constructors/defaults, hooks, and
+  `Shutdown`, `Terminate`, `Go`, `Timer`), lifecycle constructors/defaults, hooks, and
   sentinel helpers/errors.
 - `cmd/main.go` is a manual testing script for `make run`, not production
   surface. Do not require `cmd/main_test.go` or raise missing command coverage
@@ -51,10 +51,12 @@ CI order: `make source-key`, `make clean`, `make dep`, `make clean`,
 - `Serve` is the final process-lifetime blocking call: it resets and owns
   `SIGINT` and `SIGTERM`, does not restore prior signal handlers after
   returning, and shutdown can come from parent cancellation, an OS signal, or
-  `signal.Shutdown()`.
+  `signal.Shutdown()` or `signal.Terminate(err)`.
 - `Shutdown` sends `os.Interrupt` to the current process.
+- `Terminate` records a shutdown cause and sends `os.Interrupt` to the current
+  process; `Serve` returns the cause joined with stop-hook errors.
 - `Terminated(err)` marks an error with `ErrTerminated`; `IsTerminated` checks
-  it; `Go` calls `Shutdown()` when it sees one.
+  it; `Go` calls `Terminate(err)` when it sees one.
 - `Timer` runs `hook.Start` once, ticks at the interval, stops on parent
   cancellation or hook error, and returns `ErrInvalidInterval` for
   `interval <= 0`.
