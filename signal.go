@@ -26,7 +26,7 @@ import (
 // are treated as no-ops.
 //
 // Timer executes its work through [Go], so a [Terminated] error still triggers
-// [Shutdown]. Because [Go] is a best-effort waiting helper, Timer may return
+// [Terminate]. Because [Go] is a best-effort waiting helper, Timer may return
 // before the timer worker has run hook.Stop when ctx is canceled or timeout
 // elapses first, and late non-terminated hook errors are not returned to the
 // caller. The interval must be greater than zero or Timer returns
