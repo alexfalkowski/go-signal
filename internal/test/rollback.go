@@ -9,9 +9,7 @@ import (
 // RegisterRollbackHooks registers a fixed set of lifecycle hooks that exercise
 // startup rollback behavior and returns the event log used by those hooks.
 //
-// The hooks are registered on the package-level default lifecycle through
-// signal.Register. Callers should install the desired default lifecycle before
-// calling this helper.
+// The hooks are registered on the supplied lifecycle.
 //
 // The registered hooks always attempt startup in this order:
 //
@@ -33,10 +31,10 @@ import (
 //   - rolls back only successfully started hooks
 //   - preserves reverse registration order during rollback
 //   - joins startup and rollback errors
-func RegisterRollbackHooks(hook2StartErr, hook3StopErr, hook4StartErr error) *[]string {
+func RegisterRollbackHooks(lifecycle *signal.Lifecycle, hook2StartErr, hook3StopErr, hook4StartErr error) *[]string {
 	events := make([]string, 0, 6)
 
-	signal.Register(signal.Hook{
+	lifecycle.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			events = append(events, "start:1")
 			return nil
@@ -46,7 +44,7 @@ func RegisterRollbackHooks(hook2StartErr, hook3StopErr, hook4StartErr error) *[]
 			return nil
 		},
 	})
-	signal.Register(signal.Hook{
+	lifecycle.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			events = append(events, "start:2")
 			return hook2StartErr
@@ -56,7 +54,7 @@ func RegisterRollbackHooks(hook2StartErr, hook3StopErr, hook4StartErr error) *[]
 			return nil
 		},
 	})
-	signal.Register(signal.Hook{
+	lifecycle.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			events = append(events, "start:3")
 			return nil
@@ -66,7 +64,7 @@ func RegisterRollbackHooks(hook2StartErr, hook3StopErr, hook4StartErr error) *[]
 			return hook3StopErr
 		},
 	})
-	signal.Register(signal.Hook{
+	lifecycle.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			events = append(events, "start:4")
 			return hook4StartErr

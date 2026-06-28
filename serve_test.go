@@ -43,8 +43,9 @@ func TestServeStartRollback(t *testing.T) {
 	hook3StopErr := errors.New("signal: serve hook 3 stop error")
 	hook4StartErr := errors.New("signal: serve hook 4 start error")
 
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	events := test.RegisterRollbackHooks(hook2StartErr, hook3StopErr, hook4StartErr)
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	signal.SetDefault(lifecycle)
+	events := test.RegisterRollbackHooks(lifecycle, hook2StartErr, hook3StopErr, hook4StartErr)
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
@@ -370,6 +371,8 @@ func TestTimerStartError(t *testing.T) {
 }
 
 func TestTimerStartErrorStopsHook(t *testing.T) {
+	t.Parallel()
+
 	stopped := false
 	stopErr := errors.New("signal: timer start stop error")
 
@@ -389,6 +392,8 @@ func TestTimerStartErrorStopsHook(t *testing.T) {
 }
 
 func TestTimerCancelStopsHook(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(t.Context())
 	started := make(chan struct{})
 	stopped := make(chan struct{})
@@ -440,6 +445,8 @@ func TestTimerTickStopError(t *testing.T) {
 }
 
 func TestTimerTickErrorStopsHook(t *testing.T) {
+	t.Parallel()
+
 	events := make([]string, 0, 3)
 	stopErr := errors.New("signal: timer tick stop error")
 
@@ -467,7 +474,7 @@ func TestTimerTickError(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
-			return signal.Timer(ctx, time.Millisecond, time.Millisecond, signal.Hook{
+			return signal.Timer(ctx, time.Nanosecond, time.Millisecond, signal.Hook{
 				OnTick: func(context.Context) error {
 					return errSignal
 				},
@@ -484,16 +491,22 @@ func TestTimerTickError(t *testing.T) {
 }
 
 func TestTimerZeroInterval(t *testing.T) {
+	t.Parallel()
+
 	err := signal.Timer(t.Context(), time.Second, 0, signal.Hook{})
 	require.ErrorIs(t, err, signal.ErrInvalidInterval)
 }
 
 func TestTimerNegativeInterval(t *testing.T) {
+	t.Parallel()
+
 	err := signal.Timer(t.Context(), time.Second, -time.Second, signal.Hook{})
 	require.ErrorIs(t, err, signal.ErrInvalidInterval)
 }
 
 func TestTerminatedNil(t *testing.T) {
+	t.Parallel()
+
 	err := signal.Terminated(nil)
 
 	require.ErrorIs(t, err, signal.ErrTerminated)
@@ -501,6 +514,8 @@ func TestTerminatedNil(t *testing.T) {
 }
 
 func TestTerminatedError(t *testing.T) {
+	t.Parallel()
+
 	err := signal.Terminated(errSignal)
 
 	require.True(t, signal.IsTerminated(err))

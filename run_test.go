@@ -15,19 +15,23 @@ import (
 var errRun = errors.New("signal: run error")
 
 func TestRunEmpty(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{})
+	t.Parallel()
 
-	require.NoError(t, signal.Run(t.Context(), func(context.Context) error {
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{})
+
+	require.NoError(t, lifecycle.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
 }
 
 func TestRunOrder(t *testing.T) {
+	t.Parallel()
+
 	events := make([]string, 0, 5)
 
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			events = append(events, "start:1")
 			return nil
@@ -37,7 +41,7 @@ func TestRunOrder(t *testing.T) {
 			return nil
 		},
 	})
-	signal.Register(signal.Hook{
+	lifecycle.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			events = append(events, "start:2")
 			return nil
@@ -48,7 +52,7 @@ func TestRunOrder(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, signal.Run(t.Context(), func(context.Context) error {
+	require.NoError(t, lifecycle.Run(t.Context(), func(context.Context) error {
 		events = append(events, "handler")
 		return nil
 	}))
@@ -81,6 +85,8 @@ func TestSetDefaultNilResetsLifecycle(t *testing.T) {
 }
 
 func TestNewDefaultLifecycle(t *testing.T) {
+	t.Parallel()
+
 	lifecycle := signal.NewDefaultLifecycle()
 	started := false
 
@@ -98,16 +104,18 @@ func TestNewDefaultLifecycle(t *testing.T) {
 }
 
 func TestRunError(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
 	stopped := false
-	signal.Register(signal.Hook{
+	lifecycle.Register(signal.Hook{
 		OnStop: func(context.Context) error {
 			stopped = true
 			return nil
 		},
 	})
 
-	err := signal.Run(t.Context(), func(context.Context) error {
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
 		return errRun
 	})
 
@@ -116,28 +124,32 @@ func TestRunError(t *testing.T) {
 }
 
 func TestRunStartError(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			return errRun
 		},
 	})
 
-	require.Error(t, signal.Run(t.Context(), func(context.Context) error {
+	require.Error(t, lifecycle.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
 }
 
 func TestRunStartRollback(t *testing.T) {
+	t.Parallel()
+
 	hook2StartErr := errors.New("signal: run hook 2 start error")
 	hook3StopErr := errors.New("signal: run hook 3 stop error")
 	hook4StartErr := errors.New("signal: run hook 4 start error")
 	handlerCalled := false
 
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	events := test.RegisterRollbackHooks(hook2StartErr, hook3StopErr, hook4StartErr)
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	events := test.RegisterRollbackHooks(lifecycle, hook2StartErr, hook3StopErr, hook4StartErr)
 
-	err := signal.Run(t.Context(), func(context.Context) error {
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
 		handlerCalled = true
 		return nil
 	})
@@ -157,11 +169,13 @@ func TestRunStartRollback(t *testing.T) {
 }
 
 func TestRunStartRollbackFreshStopContext(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(t.Context())
 	stopped := false
 
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			return nil
 		},
@@ -170,14 +184,14 @@ func TestRunStartRollbackFreshStopContext(t *testing.T) {
 			return ctx.Err()
 		},
 	})
-	signal.Register(signal.Hook{
+	lifecycle.Register(signal.Hook{
 		OnStart: func(context.Context) error {
 			cancel()
 			return errRun
 		},
 	})
 
-	err := signal.Run(ctx, func(context.Context) error {
+	err := lifecycle.Run(ctx, func(context.Context) error {
 		return nil
 	})
 
@@ -187,11 +201,13 @@ func TestRunStartRollbackFreshStopContext(t *testing.T) {
 }
 
 func TestRunStopOrder(t *testing.T) {
+	t.Parallel()
+
 	events := make([]string, 0, 3)
 
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	lifecycle := signal.NewLifeCycle(time.Minute)
 	for _, event := range []string{"stop:1", "stop:2", "stop:3"} {
-		signal.Register(signal.Hook{
+		lifecycle.Register(signal.Hook{
 			OnStop: func(context.Context) error {
 				events = append(events, event)
 				return nil
@@ -199,52 +215,58 @@ func TestRunStopOrder(t *testing.T) {
 		})
 	}
 
-	require.NoError(t, signal.Run(t.Context(), func(context.Context) error {
+	require.NoError(t, lifecycle.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
 	require.Equal(t, []string{"stop:3", "stop:2", "stop:1"}, events)
 }
 
 func TestRunStopFreshContext(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(t.Context())
 
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{
 		OnStop: func(ctx context.Context) error {
 			return ctx.Err()
 		},
 	})
 
-	require.NoError(t, signal.Run(ctx, func(context.Context) error {
+	require.NoError(t, lifecycle.Run(ctx, func(context.Context) error {
 		cancel()
 		return nil
 	}))
 }
 
 func TestRunStopError(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{
 		OnStop: func(context.Context) error {
 			return errRun
 		},
 	})
 
-	require.Error(t, signal.Run(t.Context(), func(context.Context) error {
+	require.Error(t, lifecycle.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
 }
 
 func TestRunHandlerAndStopError(t *testing.T) {
+	t.Parallel()
+
 	stopErr := errors.New("signal: stop error")
 
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{
 		OnStop: func(context.Context) error {
 			return stopErr
 		},
 	})
 
-	err := signal.Run(t.Context(), func(context.Context) error {
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
 		return errRun
 	})
 
@@ -253,15 +275,17 @@ func TestRunHandlerAndStopError(t *testing.T) {
 }
 
 func TestRunStopTimeoutCause(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Microsecond))
-	signal.Register(signal.Hook{
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Microsecond)
+	lifecycle.Register(signal.Hook{
 		OnStop: func(ctx context.Context) error {
 			<-ctx.Done()
 			return context.Cause(ctx)
 		},
 	})
 
-	err := signal.Run(t.Context(), func(context.Context) error {
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
 		return nil
 	})
 

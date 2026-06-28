@@ -48,14 +48,16 @@ func TestHTTPServe(t *testing.T) {
 }
 
 func TestRunCommand(t *testing.T) {
-	signal.SetDefault(signal.NewLifeCycle(time.Minute))
-	signal.Register(signal.Hook{
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{
 		OnStart: func(ctx context.Context) error {
 			return exec.CommandContext(ctx, "echo", "hello").Run()
 		},
 	})
 
-	require.NoError(t, signal.Run(t.Context(), func(context.Context) error {
+	require.NoError(t, lifecycle.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
 }
