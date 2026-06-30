@@ -41,10 +41,10 @@ make lifecycle-benchmarks
 make benchtime=10x benchmark
 ```
 
-### Fuzz smoke tests
+### Fuzz tests
 
 ```sh
-make fuzz-smoke
+make fuzzes
 make lifecycle-fuzz
 make timer-fuzz
 make terminated-fuzz
