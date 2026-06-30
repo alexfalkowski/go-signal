@@ -8,17 +8,17 @@ benchmarks: lifecycle-benchmarks
 lifecycle-benchmarks:
 	@$(MAKE) benchtime=100x benchmark
 
-# Run bounded fuzz tests. Set fuzztime=<duration> to override the default 1s per target.
+# Run bounded fuzz tests. Set fuzztime=<duration-or-count> to override the default 1000x per target.
 fuzzes: lifecycle-fuzz timer-fuzz terminated-fuzz
 
 lifecycle-fuzz:
-	@$(MAKE) package=. name=FuzzLifecycleRunHookMatrix fuzztime=$(or $(fuzztime),1s) fuzz
+	@$(MAKE) package=. name=FuzzLifecycleRunHookMatrix fuzztime=$(or $(fuzztime),1000x) fuzz
 
 timer-fuzz:
-	@$(MAKE) package=. name=FuzzTimerEntryGuards fuzztime=$(or $(fuzztime),1s) fuzz
+	@$(MAKE) package=. name=FuzzTimerEntryGuards fuzztime=$(or $(fuzztime),1000x) fuzz
 
 terminated-fuzz:
-	@$(MAKE) package=. name=FuzzTerminatedWrapping fuzztime=$(or $(fuzztime),1s) fuzz
+	@$(MAKE) package=. name=FuzzTerminatedWrapping fuzztime=$(or $(fuzztime),1000x) fuzz
 
 # Run the manual example.
 run:
