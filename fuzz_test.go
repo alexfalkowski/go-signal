@@ -117,6 +117,7 @@ func FuzzTerminatedWrapping(f *testing.F) {
 	f.Add("signal: test error", false, 1)
 	f.Add("signal: test error", true, 2)
 	f.Add("signal: terminated", false, 3)
+	f.Add("signal: test error", false, -1)
 
 	f.Fuzz(func(t *testing.T, message string, alreadyTerminated bool, wraps int) {
 		require.False(t, signal.IsTerminated(nil))
@@ -127,7 +128,8 @@ func FuzzTerminatedWrapping(f *testing.F) {
 		if alreadyTerminated {
 			err = signal.Terminated(err)
 		}
-		for i := range wraps % 4 {
+		wraps = ((wraps % 4) + 4) % 4
+		for i := range wraps {
 			err = fmt.Errorf("wrap %d: %w", i, err)
 		}
 
