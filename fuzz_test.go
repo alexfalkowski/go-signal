@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// FuzzLifecycleRunHookMatrix explores startup, handler, stop, and rollback combinations for registered hooks.
 func FuzzLifecycleRunHookMatrix(f *testing.F) {
 	f.Add([]byte{}, false, false, false)
 	f.Add([]byte{0}, false, false, false)
@@ -67,6 +68,7 @@ func FuzzLifecycleRunHookMatrix(f *testing.F) {
 	})
 }
 
+// FuzzTimerEntryGuards explores timer validation and canceled-entry behavior before the ticking path starts.
 func FuzzTimerEntryGuards(f *testing.F) {
 	f.Add(int64(time.Second), int64(0), false)
 	f.Add(int64(time.Second), int64(-time.Nanosecond), false)
@@ -112,6 +114,7 @@ func FuzzTimerEntryGuards(f *testing.F) {
 	})
 }
 
+// FuzzTerminatedWrapping explores terminated-error marking and detection through nested wrapped errors.
 func FuzzTerminatedWrapping(f *testing.F) {
 	f.Add("", false, 0)
 	f.Add("signal: test error", false, 1)
