@@ -143,6 +143,11 @@ shutdown is requested.
 - If background work should stop the process after `Go`'s wait window has
   elapsed, wrap its error with `signal.Terminated(err)` so `Go` can request
   shutdown from the background goroutine.
+- Package-level `Go` and `Timer` request shutdown through package-level
+  `Terminate`, which records causes on `Default()`. If you call
+  `lifecycle.Serve(ctx)` directly on a custom lifecycle, background work that
+  should stop that lifecycle must call `lifecycle.Terminate(err)`, or you should
+  install the lifecycle with `SetDefault` and use package-level `Serve`.
 
 > [!NOTE]
 > `Serve` is intended to be used as the final process-lifetime blocking call.
@@ -216,9 +221,11 @@ background work that should share a lifecycle context.
 - If the worker keeps running after that waiting window, later non-terminated
   errors are not returned to the caller.
 - If the handler returns an error marked with `signal.Terminated(err)`, `Go`
-  triggers `Terminate(err)` before returning the error.
+  triggers package-level `Terminate(err)` before returning the error.
 - If that terminated error happens after the waiting window has elapsed,
   `Terminate(err)` is still triggered, but `Go` has already returned `nil`.
+- Package-level `Terminate` targets `Default()`. `Go` does not infer a custom
+  `Lifecycle` from the context passed to it.
 
 ```go
 import (
@@ -252,6 +259,10 @@ may return before the timer worker has run `hook.OnStop`, and late
 non-terminated hook errors are not returned to the caller. With a valid
 interval, if the parent context is already done or the timeout is not positive,
 the timer worker does not start.
+
+`Timer` also inherits `Go`'s termination routing: `signal.Terminated(err)`
+triggers package-level `Terminate`, so the recorded cause belongs to
+`Default()`.
 
 The interval must be greater than zero or `Timer` returns `ErrInvalidInterval`.
 
@@ -297,6 +308,12 @@ Use `SetDefault` when package-level helpers such as `Register`, `Run`, and
 `Serve` should target a custom lifecycle. Passing `nil` to `SetDefault` restores
 a fresh default lifecycle. `Default` returns the current package-level
 lifecycle.
+
+Package-level `Go` and `Timer` also use the package-level termination path. If
+you want background `signal.Terminated(err)` errors to be returned by `Serve`,
+install the lifecycle with `SetDefault` and call package-level `Serve`. If you
+call `lc.Serve(ctx)` directly, use `lc.Terminate(err)` from your own background
+work when that lifecycle should stop with a cause.
 
 ```go
 import (
