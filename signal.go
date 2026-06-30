@@ -26,7 +26,10 @@ import (
 // are treated as no-ops.
 //
 // Timer executes its work through [Go], so a [Terminated] error still triggers
-// [Terminate]. Because [Go] is a best-effort waiting helper, Timer may return
+// package-level [Terminate]. Package-level termination targets [Default]; if
+// callers run a custom lifecycle directly with [Lifecycle.Serve], background
+// work should call [Lifecycle.Terminate] on that lifecycle or install it with
+// [SetDefault]. Because [Go] is a best-effort waiting helper, Timer may return
 // before the timer worker has run hook.Stop when ctx is canceled or timeout
 // elapses first, and late non-terminated hook errors are not returned to the
 // caller. The interval must be greater than zero or Timer returns
@@ -103,10 +106,11 @@ func IsTerminated(err error) bool {
 // If handler is nil, Go returns [sync.ErrNoOnRunProvided].
 //
 // If handler returns an error marked with [ErrTerminated], Go triggers
-// [Terminate] before returning the error. If that terminated error arrives after
-// the waiting window has elapsed, Terminate is still triggered from the
-// background goroutine, but Go has already returned nil. Other late errors are
-// not returned to the caller.
+// package-level [Terminate] before returning the error. Package-level
+// termination targets [Default]; Go does not infer a custom [Lifecycle] from
+// ctx. If that terminated error arrives after the waiting window has elapsed,
+// Terminate is still triggered from the background goroutine, but Go has already
+// returned nil. Other late errors are not returned to the caller.
 func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
 	return sync.Wait(ctx, timeout, sync.Hook{
 		OnRun: sync.Handler(handler),
@@ -322,6 +326,11 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 // returns nil unless startup, rollback, or stop hooks return errors.
 // Shutdown from [Terminate] returns the terminating cause joined with any
 // stop-hook errors.
+// Package-level [Terminate] records causes on [Default]. When using a custom
+// lifecycle through this method directly, background work that needs to stop this
+// specific lifecycle should call [Lifecycle.Terminate] on the same receiver, or
+// the lifecycle should be installed with [SetDefault] before package-level
+// helpers such as [Go] or [Timer] are used.
 //
 // Note: Serve is intended to be used as the final process-lifetime blocking
 // call. It takes ownership of SIGINT and SIGTERM, does not restore prior signal
