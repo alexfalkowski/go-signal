@@ -8,6 +8,7 @@ import (
 	"github.com/alexfalkowski/go-signal"
 )
 
+// BenchmarkLifecycleRun measures lifecycle hook orchestration overhead across empty and registered-hook runs.
 func BenchmarkLifecycleRun(b *testing.B) {
 	for _, tc := range []struct {
 		name  string

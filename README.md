@@ -31,6 +31,26 @@ Use the Go toolchain version declared in [go.mod](go.mod).
 go get github.com/alexfalkowski/go-signal
 ```
 
+## 🧪 Development
+
+### Benchmarks
+
+```sh
+make benchmarks
+make lifecycle-benchmarks
+make benchtime=10x benchmark
+```
+
+### Fuzz smoke tests
+
+```sh
+make fuzz-smoke
+make lifecycle-fuzz
+make timer-fuzz
+make terminated-fuzz
+make package=. name=FuzzLifecycleRunHookMatrix fuzztime=10s fuzz
+```
+
 ## 🧭 Core API
 
 ### 🧱 NewDefaultLifecycle

@@ -66,6 +66,7 @@ jobs:
           paths:
             - ~/.cache/go-build
       - run: make coverage
+      - run: make benchmarks
       - store_test_results:
           path: test/reports
       - store_artifacts:
