@@ -48,7 +48,7 @@ make fuzzes
 make lifecycle-fuzz
 make timer-fuzz
 make terminated-fuzz
-make package=. name=FuzzLifecycleRunHookMatrix fuzztime=10s fuzz
+make package=. name=FuzzLifecycleRunHookMatrix fuzztime=1000x fuzz
 ```
 
 ## 🧭 Core API
