@@ -23,6 +23,13 @@ with `NewDefaultLifecycle()`, which uses a 30-second stop timeout.
 contexts and timer stop hooks. It wraps `github.com/alexfalkowski/go-sync`'s
 `sync.ErrTimeout`, which in turn wraps `context.DeadlineExceeded`.
 
+> [!WARNING]
+> Lifecycle helpers do not recover application panics. A panic from a `Run`
+> handler or from a `Run` or `Serve` hook can skip lifecycle cleanup. `Go` and
+> `Timer` execute callbacks in a background goroutine, so an unrecovered panic
+> can terminate the process even after the helper has returned. Recover inside
+> application callbacks when cleanup or process availability must be guaranteed.
+
 ## 📦 Install
 
 Use the Go toolchain version declared in [go.mod](go.mod).
@@ -32,6 +39,15 @@ go get github.com/alexfalkowski/go-signal
 ```
 
 ## 🧪 Development
+
+Initialize the shared `bin` tooling before running Make targets from a fresh
+clone. The submodule uses GitHub SSH, so SSH access must be configured before
+this step:
+
+```sh
+git submodule sync
+git submodule update --init
+```
 
 ### Benchmarks
 
@@ -94,31 +110,36 @@ signal.Register(signal.Hook{
 - After successful startup, `Run` always runs stop hooks when the handler
   returns, even if it returns an error, in reverse registration order.
 - Startup, handler, and stop-hook errors are combined with `errors.Join`.
-- `Run` does not recover panics from hooks or the handler, so panic recovery
-  should live in application code when cleanup must be guaranteed.
 
 ```go
+package main
+
 import (
     "context"
+    "log"
 
     "github.com/alexfalkowski/go-signal"
 )
 
-signal.Register(signal.Hook{
-    OnStart: func(context.Context) error {
-        // Start dependencies.
-        return nil
-    },
-    OnStop: func(context.Context) error {
-        // Stop dependencies.
-        return nil
-    },
-})
+func main() {
+    signal.Register(signal.Hook{
+        OnStart: func(context.Context) error {
+            // Start dependencies.
+            return nil
+        },
+        OnStop: func(context.Context) error {
+            // Stop dependencies.
+            return nil
+        },
+    })
 
-err := signal.Run(context.Background(), func(context.Context) error {
-    // Run application code.
-    return nil
-})
+    if err := signal.Run(context.Background(), func(context.Context) error {
+        // Run application code.
+        return nil
+    }); err != nil {
+        log.Fatal(err)
+    }
+}
 ```
 
 ### 🛎️ Serve
@@ -352,14 +373,7 @@ See [cmd/main.go](cmd/main.go) for a runnable example covering `Serve`, `Go`,
 `Timer`, and termination-triggered shutdown. It is a manual `make run` example,
 not an installed or production CLI.
 
-Initialize the shared `bin` tooling first when running Make targets from a
-fresh clone. The submodule uses GitHub SSH, so SSH access must be configured
-before this step:
-
-```sh
-git submodule sync
-git submodule update --init
-```
+After completing the fresh-clone setup in the Development section, run:
 
 ```sh
 make run param=terminate

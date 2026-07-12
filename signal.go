@@ -23,7 +23,9 @@ import (
 // error, the timer worker calls hook.Stop with a fresh background context
 // bounded by timeout. If that stop context expires and the stop hook returns
 // [context.Cause], the returned error matches [ErrTimeout]. Nil hook callbacks
-// are treated as no-ops.
+// are treated as no-ops. If hook.Stop fails after hook.Start or hook.Tick fails,
+// Timer combines both errors with [errors.Join], so [errors.Is] can match each
+// one.
 //
 // Timer executes its work through [Go], so a [Terminated] error still triggers
 // package-level [Terminate]. Package-level termination targets [Default]; if
@@ -34,6 +36,10 @@ import (
 // elapses first, and late non-terminated hook errors are not returned to the
 // caller. The interval must be greater than zero or Timer returns
 // [ErrInvalidInterval].
+//
+// Timer does not recover panics from hook callbacks. Because callbacks run in
+// [Go]'s internal worker goroutine, an unrecovered panic terminates the process
+// rather than becoming a returned error.
 func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) error {
 	if interval <= 0 {
 		return fmt.Errorf("%w: %s", ErrInvalidInterval, interval)
@@ -104,6 +110,10 @@ func IsTerminated(err error) bool {
 // without invoking handler.
 //
 // If handler is nil, Go returns [sync.ErrNoOnRunProvided].
+//
+// Go does not recover panics from handler. The handler runs in an internal
+// goroutine, so an unrecovered panic, including one after Go returns, terminates
+// the process rather than becoming a returned error.
 //
 // If handler returns an error marked with [ErrTerminated], Go triggers
 // package-level [Terminate] before returning the error. Package-level
@@ -266,7 +276,7 @@ type Lifecycle struct {
 
 // Register adds a hook to this lifecycle.
 //
-// Note: Lifecycle is not designed to be used concurrently. Register during
+// Register is not designed to be called concurrently. Configure hooks during
 // setup, typically in main, before calling [Lifecycle.Run] or [Lifecycle.Serve].
 func (l *Lifecycle) Register(h Hook) {
 	l.hooks = append(l.hooks, h)
@@ -331,6 +341,10 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 // specific lifecycle should call [Lifecycle.Terminate] on the same receiver, or
 // the lifecycle should be installed with [SetDefault] before package-level
 // helpers such as [Go] or [Timer] are used.
+//
+// Serve does not recover panics from start or stop hooks. A start-hook panic
+// bypasses rollback, and a stop-hook panic prevents remaining stop hooks from
+// running.
 //
 // Note: Serve is intended to be used as the final process-lifetime blocking
 // call. It takes ownership of SIGINT and SIGTERM, does not restore prior signal
