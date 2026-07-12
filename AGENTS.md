@@ -30,8 +30,8 @@ Common targets: `make dep`, `make lint`, `make sec`, `make specs`,
 `make coverage`, `make run param=start|timer|terminate`.
 
 CI order: `make source-key`, `make clean`, `make dep`, `make clean`,
-`make lint`, `make sec`, `make specs`, `make coverage`,
-`make codecov-upload`.
+`make lint`, `make sec`, `make specs`, `make fuzzes`, `make coverage`,
+`make benchmarks`, `make codecov-upload`.
 
 ## Behavior
 
