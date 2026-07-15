@@ -3,8 +3,6 @@ package signal_test
 import (
 	"context"
 	"errors"
-	"os"
-	"syscall"
 	"testing"
 	"time"
 
@@ -88,7 +86,7 @@ func TestServeStopOrder(t *testing.T) {
 	require.Equal(t, []string{"stop:3", "stop:2", "stop:1"}, events)
 }
 
-func TestServeSIGTERM(t *testing.T) {
+func TestServeTermination(t *testing.T) {
 	started := make(chan struct{})
 
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
@@ -101,11 +99,48 @@ func TestServeSIGTERM(t *testing.T) {
 
 	go func() {
 		<-started
-		process, _ := os.FindProcess(os.Getpid())
-		_ = process.Signal(syscall.SIGTERM)
+		_ = signal.Raise(signal.Termination)
 	}()
 
 	require.NoError(t, signal.Serve(t.Context()))
+}
+
+func TestServeHangup(t *testing.T) {
+	started := make(chan struct{})
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			close(started)
+			return nil
+		},
+	})
+
+	go func() {
+		<-started
+		_ = signal.Raise(signal.Hangup)
+	}()
+
+	require.NoError(t, signal.Serve(t.Context(), signal.Hangup))
+}
+
+func TestServeShutdownWithAdditionalSignal(t *testing.T) {
+	started := make(chan struct{})
+
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			close(started)
+			return nil
+		},
+	})
+
+	go func() {
+		<-started
+		_ = signal.Shutdown()
+	}()
+
+	require.NoError(t, signal.Serve(t.Context(), signal.Hangup))
 }
 
 func TestServeGoError(t *testing.T) {

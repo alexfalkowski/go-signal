@@ -179,6 +179,33 @@ func (h Hook) Stop(ctx context.Context) error {
 	return h.OnStop(ctx)
 }
 
+// Signal aliases [os.Signal] so callers can pass the exported signals below or
+// any other [os.Signal] to [Serve].
+type Signal = os.Signal
+
+// Interrupt is SIGINT, one of the signals [Serve] supports by default.
+var Interrupt Signal = os.Interrupt
+
+// Termination is SIGTERM, one of the signals [Serve] supports by default.
+//
+// It is named Termination rather than "Terminate" to avoid colliding with the
+// package function [Terminate].
+var Termination Signal = syscall.SIGTERM
+
+// Hangup is SIGHUP, an optional signal callers can pass to [Serve] to extend
+// its default signal set.
+var Hangup Signal = syscall.SIGHUP
+
+// Raise sends sig to the current process.
+//
+// [Lifecycle.Shutdown] uses Raise to send [Interrupt]. Tests and background
+// goroutines can also call Raise directly to simulate any other signal a
+// running [Lifecycle.Serve] is watching for.
+func Raise(sig Signal) error {
+	process, _ := os.FindProcess(os.Getpid())
+	return process.Signal(sig)
+}
+
 var defaultLifecycle sync.Pointer[Lifecycle]
 
 func init() {
@@ -220,8 +247,8 @@ func Run(ctx context.Context, h Handler) error {
 }
 
 // Serve calls [Lifecycle.Serve] on the default [Lifecycle].
-func Serve(ctx context.Context) error {
-	return Default().Serve(ctx)
+func Serve(ctx context.Context, signals ...Signal) error {
+	return Default().Serve(ctx, signals...)
 }
 
 // Shutdown sends an [os.Interrupt] signal to the current process through the
@@ -317,22 +344,24 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 
 // Serve runs the lifecycle until shutdown is requested.
 //
-// Serve resets any existing SIGINT and SIGTERM handlers, registers its own
-// notification context, runs all start hooks with that context, then blocks
-// until the notification context is done. If startup fails, Serve still
-// attempts the remaining start hooks, then rolls back successfully started hooks
-// in reverse registration order with a fresh background context bounded by the
-// lifecycle timeout. Shutdown can happen because the parent ctx is canceled,
-// because the process receives SIGINT or SIGTERM, because [Shutdown] delivers
-// an interrupt to the current process, or because [Terminate] records a cause
-// and delivers an interrupt.
+// Serve always treats [Interrupt] and [Termination] (SIGINT and SIGTERM) as
+// shutdown signals; any given signals extend that default set. It resets any
+// existing handlers for the resulting set, registers its own notification
+// context, runs all start hooks with that context, then blocks until the
+// notification context is done. If startup fails, Serve still attempts the
+// remaining start hooks, then rolls back successfully started hooks in reverse
+// registration order with a fresh background context bounded by the lifecycle
+// timeout. Shutdown can happen because the parent ctx is canceled, because the
+// process receives one of the active signals, because [Shutdown] delivers an
+// interrupt to the current process, or because [Terminate] records a cause and
+// delivers an interrupt.
 //
 // After shutdown is requested, Serve runs stop hooks in reverse registration
 // order with a fresh background context bounded by the lifecycle timeout
 // configured by [NewLifeCycle]. If a stop hook returns [context.Cause] after
 // that context expires, the returned error matches [ErrTimeout].
 //
-// Normal shutdown from parent cancellation, SIGINT, SIGTERM, or [Shutdown]
+// Normal shutdown from parent cancellation, a given signal, or [Shutdown]
 // returns nil unless startup, rollback, or stop hooks return errors.
 // Shutdown from [Terminate] returns the terminating cause joined with any
 // stop-hook errors.
@@ -347,15 +376,15 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 // running.
 //
 // Note: Serve is intended to be used as the final process-lifetime blocking
-// call. It takes ownership of SIGINT and SIGTERM, does not restore prior signal
-// handlers after returning, and callers should normally return from main after
-// Serve returns.
+// call. It takes ownership of its active signals (the default set plus any
+// given), does not restore prior signal handlers after returning, and callers
+// should normally return from main after Serve returns.
 //
-// Because Serve resets and re-registers SIGINT and SIGTERM handling during
-// startup, there is a narrow handoff window in which an arriving signal may
-// need to be sent again.
-func (l *Lifecycle) Serve(ctx context.Context) error {
-	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
+// Because Serve resets and re-registers its signal handling during startup,
+// there is a narrow handoff window in which an arriving signal may need to be
+// sent again.
+func (l *Lifecycle) Serve(ctx context.Context, signals ...Signal) error {
+	signals = append([]Signal{Interrupt, Termination}, signals...)
 
 	// Reset and ignore prior handlers so Serve only captures signals delivered after it starts.
 	signal.Reset(signals...)
@@ -387,8 +416,7 @@ func (l *Lifecycle) Serve(ctx context.Context) error {
 // This is primarily intended to unblock [Lifecycle.Serve] programmatically, for
 // example from a background goroutine or from tests.
 func (l *Lifecycle) Shutdown() error {
-	process, _ := os.FindProcess(os.Getpid())
-	return process.Signal(os.Interrupt)
+	return Raise(Interrupt)
 }
 
 // Terminate records err as this lifecycle's shutdown cause and sends an
