@@ -150,17 +150,20 @@ shutdown is requested.
 - It runs start hooks first.
 - If startup fails, it still attempts the remaining start hooks and then rolls
   back successfully started hooks in reverse registration order.
-- It waits for `SIGINT` or `SIGTERM`, or for the parent context to be canceled.
+- It always waits for `signal.Interrupt` and `signal.Termination` (`SIGINT` and
+  `SIGTERM`), or for the parent context to be canceled. Pass `signal.Hangup` or
+  any other `signal.Signal` (an alias for `os.Signal`) to extend that default
+  set, e.g. `signal.Serve(ctx, signal.Hangup)`.
 - It then runs stop hooks with a fresh background context bounded by the
   lifecycle timeout in reverse registration order.
 - If a stop hook returns `context.Cause(ctx)` after that stop context expires,
   the returned error matches `signal.ErrTimeout`.
-- Normal shutdown from parent cancellation, `SIGINT`, `SIGTERM`, or `Shutdown()`
+- Normal shutdown from parent cancellation, a given signal, or `Shutdown()`
   returns nil unless startup, rollback, or stop hooks return errors.
 - Shutdown from `Terminate(err)` returns the terminating cause, joined with any
   stop-hook errors.
 - During signal takeover, there is a narrow startup handoff window where an
-  incoming `SIGINT` or `SIGTERM` may need to be sent again.
+  incoming signal may need to be sent again.
 - If background work should stop the process after `Go`'s wait window has
   elapsed, wrap its error with `signal.Terminated(err)` so `Go` can request
   shutdown from the background goroutine.
@@ -172,9 +175,9 @@ shutdown is requested.
 
 > [!NOTE]
 > `Serve` is intended to be used as the final process-lifetime blocking call.
-> It takes ownership of `SIGINT` and `SIGTERM`, does not restore prior signal
-> handlers after returning, and callers should normally return from `main` after
-> `Serve` returns.
+> It takes ownership of its active signals (the default set plus any given),
+> does not restore prior signal handlers after returning, and callers should
+> normally return from `main` after `Serve` returns.
 
 ```go
 import (
@@ -227,6 +230,12 @@ hooks run.
 
 Passing `nil` records `ErrTerminated`. Passing a non-nil error marks it with
 `ErrTerminated` unless it is already marked.
+
+### 📡 Raise
+
+`Raise` sends any `signal.Signal` to the current process. `Shutdown` uses it
+internally to send `signal.Interrupt`; call it directly to simulate any other
+signal a running `Serve` is watching for, e.g. `signal.Raise(signal.Hangup)`.
 
 ## 🧰 Background helpers
 

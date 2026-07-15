@@ -13,8 +13,10 @@ Use `bin/AGENTS.md` for shared skills and cross-repository defaults.
 - Main files: `signal.go`, `run_test.go`, `serve_test.go`, `signal_test.go`,
   `internal/test/`, `cmd/main.go`, `README.md`, `.circleci/config.yml`.
 - Public surface includes lifecycle helpers (`Register`, `Run`, `Serve`,
-  `Shutdown`, `Terminate`, `Go`, `Timer`), lifecycle constructors/defaults, hooks, and
-  sentinel helpers/errors.
+  `Shutdown`, `Terminate`, `Go`, `Timer`), lifecycle constructors/defaults, hooks,
+  the `Signal` alias with its exported signal vars (`Interrupt`, `Termination`,
+  `Hangup`), `Raise` (sends a signal to the current process), and sentinel
+  helpers/errors.
 - `cmd/main.go` is a manual testing script for `make run`, not production
   surface. Do not require `cmd/main_test.go` or raise missing command coverage
   for `cmd/main.go` during `$test-gaps` reviews.
@@ -48,13 +50,19 @@ CI order: `make source-key`, `make clean`, `make dep`, `make clean`,
 - `Run`, `Serve`, and `Timer` use fresh timeout-bound background contexts for
   rollback/shutdown stop hooks. Returning `context.Cause(ctx)` from an expired
   stop context should match `signal.ErrTimeout`.
-- `Serve` is the final process-lifetime blocking call: it resets and owns
-  `SIGINT` and `SIGTERM`, does not restore prior signal handlers after
-  returning, and shutdown can come from parent cancellation, an OS signal, or
+- `Serve` is the final process-lifetime blocking call: it always resets and
+  owns `SIGINT` and `SIGTERM`, plus any additional `signal.Signal` values
+  passed as variadic arguments (`signal.Interrupt`, `signal.Termination`,
+  `signal.Hangup` are the exported names; `Signal` aliases `os.Signal`); it
+  does not restore prior signal handlers after returning, and shutdown can come
+  from parent cancellation, an OS signal in the active set, or
   `signal.Shutdown()` or `signal.Terminate(err)`.
-- `Shutdown` sends `os.Interrupt` to the current process.
+- `Shutdown` sends `os.Interrupt` to the current process via `Raise`.
 - `Terminate` records a shutdown cause and sends `os.Interrupt` to the current
   process; `Serve` returns the cause joined with stop-hook errors.
+- `Raise(sig)` sends `sig` to the current process (`os.FindProcess(os.Getpid())`
+  + `process.Signal(sig)`); `Shutdown` uses it internally, and tests use it
+  directly to simulate arbitrary signals.
 - `Terminated(err)` marks an error with `ErrTerminated`; `IsTerminated` checks
   it; `Go` calls `Terminate(err)` when it sees one.
 - `Timer` runs `hook.Start` once, ticks at the interval, stops on parent
