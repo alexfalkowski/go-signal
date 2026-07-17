@@ -8,6 +8,7 @@ import (
 
 	"github.com/alexfalkowski/go-signal"
 	"github.com/alexfalkowski/go-signal/internal/test"
+	"github.com/alexfalkowski/go-sync"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,6 +35,20 @@ func TestServeStartError(t *testing.T) {
 	})
 
 	require.Error(t, signal.Serve(t.Context()))
+}
+
+func TestServeStartPanic(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			panic(errSignal)
+		},
+	})
+
+	err := signal.Serve(t.Context())
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.ErrorIs(t, err, errSignal)
 }
 
 func TestServeStartRollback(t *testing.T) {
@@ -156,6 +171,28 @@ func TestServeGoError(t *testing.T) {
 	require.Error(t, signal.Serve(t.Context()))
 }
 
+func TestServeGoPanic(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStart: func(ctx context.Context) error {
+			return signal.Go(ctx, time.Minute, func(context.Context) error {
+				panic(errSignal)
+			})
+		},
+	})
+
+	err := signal.Serve(t.Context())
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.ErrorIs(t, err, errSignal)
+}
+
+func TestGoNilHandler(t *testing.T) {
+	t.Parallel()
+
+	require.ErrorIs(t, signal.Go(t.Context(), time.Second, nil), sync.ErrNoOnRunProvided)
+}
+
 func TestServeGoTerminated(t *testing.T) {
 	signal.SetDefault(signal.NewLifeCycle(time.Minute))
 	signal.Register(signal.Hook{
@@ -250,6 +287,25 @@ func TestServeStopError(t *testing.T) {
 	}()
 
 	require.Error(t, signal.Serve(t.Context()))
+}
+
+func TestServeStopPanic(t *testing.T) {
+	signal.SetDefault(signal.NewLifeCycle(time.Minute))
+	signal.Register(signal.Hook{
+		OnStop: func(context.Context) error {
+			panic(errSignal)
+		},
+	})
+
+	go func() {
+		time.Sleep(time.Second)
+		_ = signal.Shutdown()
+	}()
+
+	err := signal.Serve(t.Context())
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.ErrorIs(t, err, errSignal)
 }
 
 func TestServeStopContextNoError(t *testing.T) {
@@ -523,6 +579,31 @@ func TestTimerTickError(t *testing.T) {
 	}()
 
 	require.NoError(t, signal.Serve(t.Context()))
+}
+
+func TestTimerTickPanicStopsHook(t *testing.T) {
+	t.Parallel()
+
+	events := make([]string, 0, 3)
+
+	err := signal.Timer(t.Context(), time.Second, time.Millisecond, signal.Hook{
+		OnStart: func(context.Context) error {
+			events = append(events, "start")
+			return nil
+		},
+		OnTick: func(context.Context) error {
+			events = append(events, "tick")
+			panic(errSignal)
+		},
+		OnStop: func(context.Context) error {
+			events = append(events, "stop")
+			return nil
+		},
+	})
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.ErrorIs(t, err, errSignal)
+	require.Equal(t, []string{"start", "tick", "stop"}, events)
 }
 
 func TestTimerZeroInterval(t *testing.T) {

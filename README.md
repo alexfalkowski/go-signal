@@ -23,12 +23,12 @@ with `NewDefaultLifecycle()`, which uses a 30-second stop timeout.
 contexts and timer stop hooks. It wraps `github.com/alexfalkowski/go-sync`'s
 `sync.ErrTimeout`, which in turn wraps `context.DeadlineExceeded`.
 
-> [!WARNING]
-> Lifecycle helpers do not recover application panics. A panic from a `Run`
-> handler or from a `Run` or `Serve` hook can skip lifecycle cleanup. `Go` and
-> `Timer` execute callbacks in a background goroutine, so an unrecovered panic
-> can terminate the process even after the helper has returned. Recover inside
-> application callbacks when cleanup or process availability must be guaranteed.
+> [!NOTE]
+> Lifecycle helpers recover application panics. A panic from a hook, from a
+> `Run` handler, or from a `Go`/`Timer` handler is converted into an error
+> marked with `signal.ErrRecovered` instead of skipping lifecycle cleanup or
+> crashing the process. Detect a recovered panic with
+> `errors.Is(err, signal.ErrRecovered)`.
 
 ## 📦 Install
 
