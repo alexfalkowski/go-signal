@@ -123,6 +123,53 @@ func TestRunError(t *testing.T) {
 	require.True(t, stopped)
 }
 
+func TestRunHandlerPanic(t *testing.T) {
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	stopped := false
+	lifecycle.Register(signal.Hook{
+		OnStop: func(context.Context) error {
+			stopped = true
+			return nil
+		},
+	})
+
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
+		panic(errRun)
+	})
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.ErrorIs(t, err, errRun)
+	require.True(t, stopped)
+}
+
+func TestRunHandlerPanicString(t *testing.T) {
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
+		panic("boom")
+	})
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.EqualError(t, err, "boom: signal: recovered")
+}
+
+func TestRunHandlerPanicOther(t *testing.T) {
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
+		panic(42)
+	})
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.EqualError(t, err, "42: signal: recovered")
+}
+
 func TestRunStartError(t *testing.T) {
 	t.Parallel()
 
@@ -136,6 +183,86 @@ func TestRunStartError(t *testing.T) {
 	require.Error(t, lifecycle.Run(t.Context(), func(context.Context) error {
 		return nil
 	}))
+}
+
+func TestRunNilHandlerPanic(t *testing.T) {
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	require.ErrorIs(t, lifecycle.Run(t.Context(), nil), signal.ErrRecovered)
+}
+
+func TestRunStartPanic(t *testing.T) {
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	lifecycle.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			panic(errRun)
+		},
+	})
+
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
+		return nil
+	})
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.ErrorIs(t, err, errRun)
+}
+
+func TestRunStartPanicRollsBackStartedHooks(t *testing.T) {
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	stopped := false
+	lifecycle.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			stopped = true
+			return nil
+		},
+	})
+	lifecycle.Register(signal.Hook{
+		OnStart: func(context.Context) error {
+			panic(errRun)
+		},
+	})
+
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
+		return nil
+	})
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.ErrorIs(t, err, errRun)
+	require.True(t, stopped)
+}
+
+func TestRunStopPanicContinuesRemainingHooks(t *testing.T) {
+	t.Parallel()
+
+	lifecycle := signal.NewLifeCycle(time.Minute)
+	stopped := false
+	lifecycle.Register(signal.Hook{
+		OnStop: func(context.Context) error {
+			stopped = true
+			return nil
+		},
+	})
+	lifecycle.Register(signal.Hook{
+		OnStop: func(context.Context) error {
+			panic(errRun)
+		},
+	})
+
+	err := lifecycle.Run(t.Context(), func(context.Context) error {
+		return nil
+	})
+
+	require.ErrorIs(t, err, signal.ErrRecovered)
+	require.ErrorIs(t, err, errRun)
+	require.True(t, stopped)
 }
 
 func TestRunStartRollback(t *testing.T) {

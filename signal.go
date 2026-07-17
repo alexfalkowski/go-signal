@@ -37,9 +37,8 @@ import (
 // caller. The interval must be greater than zero or Timer returns
 // [ErrInvalidInterval].
 //
-// Timer does not recover panics from hook callbacks. Because callbacks run in
-// [Go]'s internal worker goroutine, an unrecovered panic terminates the process
-// rather than becoming a returned error.
+// A panic from hook.Start or hook.Tick is recovered and returned as an error
+// marked with [ErrRecovered]; see [Hook.Start] and [Hook.Tick].
 func Timer(ctx context.Context, timeout, interval time.Duration, hook Hook) error {
 	if interval <= 0 {
 		return fmt.Errorf("%w: %s", ErrInvalidInterval, interval)
@@ -111,9 +110,11 @@ func IsTerminated(err error) bool {
 //
 // If handler is nil, Go returns [sync.ErrNoOnRunProvided].
 //
-// Go does not recover panics from handler. The handler runs in an internal
-// goroutine, so an unrecovered panic, including one after Go returns, terminates
-// the process rather than becoming a returned error.
+// A panic from handler is recovered and returned as an error marked with
+// [ErrRecovered] instead of terminating the process. Because handler runs in
+// an internal goroutine, a panic recovered after Go's waiting window has
+// elapsed is not returned to the caller, matching Go's handling of ordinary
+// late errors.
 //
 // If handler returns an error marked with [ErrTerminated], Go triggers
 // package-level [Terminate] before returning the error. Package-level
@@ -123,7 +124,7 @@ func IsTerminated(err error) bool {
 // returned nil. Other late errors are not returned to the caller.
 func Go(ctx context.Context, timeout time.Duration, handler Handler) error {
 	return sync.Wait(ctx, timeout, sync.Hook{
-		OnRun: sync.Handler(handler),
+		OnRun: sync.Handler(recoverHandler(handler)),
 		OnError: func(_ context.Context, err error) error {
 			if IsTerminated(err) {
 				_ = Terminate(err)
@@ -156,26 +157,56 @@ type Hook struct {
 }
 
 // Start calls [Hook.OnStart] if it is set, otherwise it returns nil.
-func (h Hook) Start(ctx context.Context) error {
+//
+// A panic from OnStart is recovered and returned as an error marked with
+// [ErrRecovered].
+func (h Hook) Start(ctx context.Context) (err error) {
 	if h.OnStart == nil {
 		return nil
 	}
+
+	defer func() {
+		if v := recover(); v != nil {
+			err = convertRecover(v)
+		}
+	}()
+
 	return h.OnStart(ctx)
 }
 
 // Tick calls [Hook.OnTick] if it is set, otherwise it returns nil.
-func (h Hook) Tick(ctx context.Context) error {
+//
+// A panic from OnTick is recovered and returned as an error marked with
+// [ErrRecovered].
+func (h Hook) Tick(ctx context.Context) (err error) {
 	if h.OnTick == nil {
 		return nil
 	}
+
+	defer func() {
+		if v := recover(); v != nil {
+			err = convertRecover(v)
+		}
+	}()
+
 	return h.OnTick(ctx)
 }
 
 // Stop calls [Hook.OnStop] if it is set, otherwise it returns nil.
-func (h Hook) Stop(ctx context.Context) error {
+//
+// A panic from OnStop is recovered and returned as an error marked with
+// [ErrRecovered].
+func (h Hook) Stop(ctx context.Context) (err error) {
 	if h.OnStop == nil {
 		return nil
 	}
+
+	defer func() {
+		if v := recover(); v != nil {
+			err = convertRecover(v)
+		}
+	}()
+
 	return h.OnStop(ctx)
 }
 
@@ -320,9 +351,11 @@ func (l *Lifecycle) Register(h Hook) {
 // context. If a stop hook returns [context.Cause] after that context expires,
 // the returned error matches [ErrTimeout].
 //
-// Run requires a non-nil handler; passing nil panics when Run invokes it. It
-// does not recover panics from start hooks, the handler, or stop hooks; stop
-// hooks run after the handler returns.
+// A panic from a start hook, from h, or from a stop hook is recovered and
+// returned as an error marked with [ErrRecovered] instead of propagating out
+// of Run; stop hooks still run after h returns or panics. Because a nil
+// handler panics the same way when Run invokes it, passing a nil handler now
+// returns an [ErrRecovered] error rather than panicking.
 //
 // Startup, handler, and stop-hook errors are combined with [errors.Join].
 func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
@@ -334,7 +367,7 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 		return errors.Join(err, l.stop(stopCtx, started))
 	}
 
-	handlerErr := h(ctx)
+	handlerErr := callHandler(ctx, h)
 
 	stopCtx, cancel := l.stopContext()
 	defer cancel()
@@ -371,9 +404,10 @@ func (l *Lifecycle) Run(ctx context.Context, h Handler) error {
 // the lifecycle should be installed with [SetDefault] before package-level
 // helpers such as [Go] or [Timer] are used.
 //
-// Serve does not recover panics from start or stop hooks. A start-hook panic
-// bypasses rollback, and a stop-hook panic prevents remaining stop hooks from
-// running.
+// A panic from a start or stop hook is recovered by [Hook.Start] or
+// [Hook.Stop] and returned as an error marked with [ErrRecovered]; a
+// start-hook panic no longer bypasses rollback, and a stop-hook panic no
+// longer prevents remaining stop hooks from running.
 //
 // Note: Serve is intended to be used as the final process-lifetime blocking
 // call. It takes ownership of its active signals (the default set plus any
@@ -482,6 +516,32 @@ func stopHook(timeout time.Duration, hook Hook) error {
 	defer cancel()
 
 	return hook.Stop(stopCtx)
+}
+
+func callHandler(ctx context.Context, h Handler) (err error) {
+	defer func() {
+		if v := recover(); v != nil {
+			err = convertRecover(v)
+		}
+	}()
+
+	return h(ctx)
+}
+
+func recoverHandler(h Handler) Handler {
+	if h == nil {
+		return nil
+	}
+
+	return func(ctx context.Context) (err error) {
+		defer func() {
+			if v := recover(); v != nil {
+				err = convertRecover(v)
+			}
+		}()
+
+		return h(ctx)
+	}
 }
 
 func terminationError(err error) error {
