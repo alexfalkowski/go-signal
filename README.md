@@ -183,6 +183,7 @@ shutdown is requested.
 import (
     "context"
     "errors"
+    "log"
     "net"
     "net/http"
     "time"
@@ -212,7 +213,9 @@ signal.Register(signal.Hook{
     },
 })
 
-err := signal.Serve(context.Background())
+if err := signal.Serve(context.Background()); err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### 🛑 Shutdown
@@ -260,15 +263,18 @@ background work that should share a lifecycle context.
 ```go
 import (
     "context"
+    "log"
     "time"
 
     "github.com/alexfalkowski/go-signal"
 )
 
-err := signal.Go(context.Background(), 5*time.Second, func(context.Context) error {
+if err := signal.Go(context.Background(), 5*time.Second, func(context.Context) error {
     // Run background work.
     return nil
-})
+}); err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### ⏱️ Timer
@@ -348,6 +354,7 @@ work when that lifecycle should stop with a cause.
 ```go
 import (
     "context"
+    "log"
     "time"
 
     "github.com/alexfalkowski/go-signal"
@@ -360,9 +367,11 @@ lc.Register(signal.Hook{
     OnStop:  func(context.Context) error { return nil },
 })
 
-err := lc.Run(context.Background(), func(context.Context) error {
+if err := lc.Run(context.Background(), func(context.Context) error {
     return nil
-})
+}); err != nil {
+    log.Fatal(err)
+}
 ```
 
 To use that lifecycle through the package-level helpers:
@@ -371,9 +380,11 @@ To use that lifecycle through the package-level helpers:
 signal.SetDefault(lc)
 defer signal.SetDefault(nil)
 
-err := signal.Run(context.Background(), func(context.Context) error {
+if err := signal.Run(context.Background(), func(context.Context) error {
     return nil
-})
+}); err != nil {
+    log.Fatal(err)
+}
 ```
 
 ## 🧪 Example
