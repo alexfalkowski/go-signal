@@ -22,6 +22,7 @@ linters:
     - wrapcheck
     - wsl
     - wsl_v5
+    - exhaustruct_v5
   exclusions:
     generated: lax
     presets:
