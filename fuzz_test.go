@@ -2,56 +2,45 @@ package signal_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"testing"
-	"time"
 
-	"github.com/alexfalkowski/go-signal"
+	"github.com/alexfalkowski/go-signal/v2"
 	"github.com/stretchr/testify/require"
 )
 
-// FuzzLifecycleRunHookMatrix explores startup, handler, stop, and rollback combinations for registered hooks.
-func FuzzLifecycleRunHookMatrix(f *testing.F) {
-	f.Add([]byte{}, false, false, false)
-	f.Add([]byte{0}, false, false, false)
-	f.Add([]byte{0x05, 0x05}, false, false, false)
-	f.Add([]byte{0x07, 0x05}, false, false, false)
-	f.Add([]byte{0x05, 0x0f, 0x07}, true, false, false)
-	f.Add([]byte{0x15, 0x05}, false, true, false)
-	f.Add([]byte{0x15, 0x05}, false, false, true)
+// FuzzLifecycleHookMatrix explores startup, rollback, and cleanup combinations.
+func FuzzLifecycleHookMatrix(f *testing.F) {
+	f.Add([]byte{}, false)
+	f.Add([]byte{0}, false)
+	f.Add([]byte{0x05, 0x05}, false)
+	f.Add([]byte{0x05, 0x07, 0x05}, false)
+	f.Add([]byte{0x0d, 0x0f, 0x07}, false)
+	f.Add([]byte{0x05, 0x05}, true)
 
-	f.Fuzz(func(t *testing.T, raw []byte, handlerFails, cancelBeforeRun, handlerCancels bool) {
+	f.Fuzz(func(t *testing.T, raw []byte, canceled bool) {
 		const maxHooks = 8
 		if len(raw) > maxHooks {
 			raw = raw[:maxHooks]
 		}
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-
-		if cancelBeforeRun {
+		if canceled {
 			cancel()
 		}
 
-		lifecycle := signal.NewLifeCycle(time.Minute)
-		run := newLifecycleRunFuzz(raw)
-		run.register(t, lifecycle)
-		handlerErr := errors.New("handler error")
-		run.expect(handlerErr, handlerFails)
-
-		err := lifecycle.Run(ctx, func(context.Context) error {
-			run.events = append(run.events, "handler")
-			if handlerCancels {
-				cancel()
+		run := newLifecycleFuzz(raw)
+		app, err := signal.NewApp(signal.Register(func(lc signal.Lifecycle) {
+			for i, flags := range raw {
+				lc.Append(run.hook(i, flags))
 			}
-			if handlerFails {
-				return handlerErr
-			}
-			return nil
-		})
+		}))
+		require.NoError(t, err)
+		run.expect(canceled)
 
+		err = app.Run(ctx)
 		require.Equal(t, run.expectedEvents, run.events)
 		if len(run.expectedErrs) == 0 {
 			require.NoError(t, err)
@@ -64,87 +53,13 @@ func FuzzLifecycleRunHookMatrix(f *testing.F) {
 				require.NotErrorIs(t, err, possibleErr)
 			}
 		}
-		require.NotErrorIs(t, err, context.Canceled)
+		if !canceled {
+			require.NotErrorIs(t, err, context.Canceled)
+		}
 	})
 }
 
-// FuzzTimerEntryGuards explores timer validation and canceled-entry behavior before the ticking path starts.
-func FuzzTimerEntryGuards(f *testing.F) {
-	f.Add(int64(time.Second), int64(0), false)
-	f.Add(int64(time.Second), int64(-time.Nanosecond), false)
-	f.Add(int64(0), int64(time.Nanosecond), false)
-	f.Add(int64(-time.Nanosecond), int64(time.Nanosecond), false)
-	f.Add(int64(time.Second), int64(time.Nanosecond), true)
-
-	f.Fuzz(func(t *testing.T, timeoutNanos, intervalNanos int64, canceled bool) {
-		timeout := time.Duration(timeoutNanos)
-		interval := time.Duration(intervalNanos)
-		if interval > 0 && timeout > 0 && !canceled {
-			t.Skip("positive timer ticking is intentionally covered by deterministic tests")
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		if canceled {
-			cancel()
-		}
-
-		called := 0
-		err := signal.Timer(ctx, timeout, interval, signal.Hook{
-			OnStart: func(context.Context) error {
-				called++
-				return errors.New("unexpected start")
-			},
-			OnTick: func(context.Context) error {
-				called++
-				return errors.New("unexpected tick")
-			},
-			OnStop: func(context.Context) error {
-				called++
-				return errors.New("unexpected stop")
-			},
-		})
-
-		require.Zero(t, called)
-		if interval <= 0 {
-			require.ErrorIs(t, err, signal.ErrInvalidInterval)
-			return
-		}
-		require.NoError(t, err)
-	})
-}
-
-// FuzzTerminatedWrapping explores terminated-error marking and detection through nested wrapped errors.
-func FuzzTerminatedWrapping(f *testing.F) {
-	f.Add("", false, 0)
-	f.Add("signal: test error", false, 1)
-	f.Add("signal: test error", true, 2)
-	f.Add("signal: terminated", false, 3)
-	f.Add("signal: test error", false, -1)
-
-	f.Fuzz(func(t *testing.T, message string, alreadyTerminated bool, wraps int) {
-		require.False(t, signal.IsTerminated(nil))
-		require.ErrorIs(t, signal.Terminated(nil), signal.ErrTerminated)
-
-		base := errors.New(message)
-		err := base
-		if alreadyTerminated {
-			err = signal.Terminated(err)
-		}
-		wraps = ((wraps % 4) + 4) % 4
-		for i := range wraps {
-			err = fmt.Errorf("wrap %d: %w", i, err)
-		}
-
-		terminated := signal.Terminated(err)
-
-		require.True(t, signal.IsTerminated(terminated))
-		require.ErrorIs(t, terminated, signal.ErrTerminated)
-		require.ErrorIs(t, terminated, base)
-	})
-}
-
-type lifecycleRunFuzz struct {
+type lifecycleFuzz struct {
 	raw            []byte
 	events         []string
 	expectedEvents []string
@@ -157,13 +72,13 @@ type lifecycleRunFuzz struct {
 	startFailed    bool
 }
 
-func newLifecycleRunFuzz(raw []byte) *lifecycleRunFuzz {
-	return &lifecycleRunFuzz{
+func newLifecycleFuzz(raw []byte) *lifecycleFuzz {
+	return &lifecycleFuzz{
 		raw:            raw,
-		events:         make([]string, 0, len(raw)*2+1),
-		expectedEvents: make([]string, 0, len(raw)*2+1),
+		events:         make([]string, 0, len(raw)*2),
+		expectedEvents: make([]string, 0, len(raw)*2),
 		expectedErrs:   make(map[error]struct{}),
-		allErrs:        make([]error, 0, len(raw)*2+1),
+		allErrs:        make([]error, 0, len(raw)*2),
 		stopErrs:       make([]error, len(raw)),
 		started:        make([]bool, len(raw)),
 		stopEnabled:    make([]bool, len(raw)),
@@ -171,20 +86,11 @@ func newLifecycleRunFuzz(raw []byte) *lifecycleRunFuzz {
 	}
 }
 
-func (r *lifecycleRunFuzz) register(t *testing.T, lifecycle *signal.Lifecycle) {
-	t.Helper()
-
-	for i, flags := range r.raw {
-		lifecycle.Register(r.hook(i, flags))
-	}
-}
-
-func (r *lifecycleRunFuzz) hook(i int, flags byte) signal.Hook {
+func (r *lifecycleFuzz) hook(i int, flags byte) signal.Hook {
 	startEnabled := flags&0x01 != 0
 	startFails := flags&0x02 != 0
 	r.stopEnabled[i] = flags&0x04 != 0
 	r.stopFails[i] = flags&0x08 != 0
-	stopReturnsContextErr := flags&0x10 != 0
 	startErr := fmt.Errorf("start %d", i)
 	stopErr := fmt.Errorf("stop %d", i)
 	r.stopErrs[i] = stopErr
@@ -192,30 +98,33 @@ func (r *lifecycleRunFuzz) hook(i int, flags byte) signal.Hook {
 
 	hook := signal.Hook{}
 	if startEnabled {
-		r.expectedEvents = append(r.expectedEvents, fmt.Sprintf("start:%d", i))
+		if !r.startFailed {
+			r.expectedEvents = append(r.expectedEvents, fmt.Sprintf("start:%d", i))
+		}
 		hook.OnStart = func(context.Context) error {
 			r.events = append(r.events, fmt.Sprintf("start:%d", i))
 			if startFails {
 				return startErr
 			}
+
 			return nil
 		}
 	}
-	if startEnabled && startFails {
-		r.startFailed = true
-		r.expectedErrs[startErr] = struct{}{}
-	} else {
-		r.started[i] = true
+	if !r.startFailed {
+		if startEnabled && startFails {
+			r.startFailed = true
+			r.expectedErrs[startErr] = struct{}{}
+		} else {
+			r.started[i] = true
+		}
 	}
 	if r.stopEnabled[i] {
-		hook.OnStop = func(ctx context.Context) error {
+		hook.OnStop = func(context.Context) error {
 			r.events = append(r.events, fmt.Sprintf("stop:%d", i))
 			if r.stopFails[i] {
 				return stopErr
 			}
-			if stopReturnsContextErr {
-				return ctx.Err()
-			}
+
 			return nil
 		}
 	}
@@ -223,40 +132,22 @@ func (r *lifecycleRunFuzz) hook(i int, flags byte) signal.Hook {
 	return hook
 }
 
-func (r *lifecycleRunFuzz) expect(handlerErr error, handlerFails bool) {
-	r.allErrs = append(r.allErrs, handlerErr)
-	if r.startFailed {
-		r.expectRollbackStops()
+func (r *lifecycleFuzz) expect(canceled bool) {
+	if canceled {
+		r.expectedEvents = r.expectedEvents[:0]
+		clear(r.expectedErrs)
+		r.expectedErrs[context.Canceled] = struct{}{}
 		return
 	}
 
-	r.expectedEvents = append(r.expectedEvents, "handler")
-	if handlerFails {
-		r.expectedErrs[handlerErr] = struct{}{}
-	}
-	r.expectSuccessfulStops()
-}
-
-func (r *lifecycleRunFuzz) expectRollbackStops() {
 	for i := range slices.Backward(r.raw) {
 		if !r.started[i] || !r.stopEnabled[i] {
 			continue
 		}
-		r.expectStop(i)
-	}
-}
 
-func (r *lifecycleRunFuzz) expectSuccessfulStops() {
-	for i := range slices.Backward(r.raw) {
-		if r.stopEnabled[i] {
-			r.expectStop(i)
+		r.expectedEvents = append(r.expectedEvents, fmt.Sprintf("stop:%d", i))
+		if r.stopFails[i] {
+			r.expectedErrs[r.stopErrs[i]] = struct{}{}
 		}
-	}
-}
-
-func (r *lifecycleRunFuzz) expectStop(i int) {
-	r.expectedEvents = append(r.expectedEvents, fmt.Sprintf("stop:%d", i))
-	if r.stopFails[i] {
-		r.expectedErrs[r.stopErrs[i]] = struct{}{}
 	}
 }

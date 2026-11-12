@@ -6,17 +6,19 @@ Use `bin/AGENTS.md` for shared skills and cross-repository defaults.
 
 ## Repo
 
-- Module: `github.com/alexfalkowski/go-signal`.
+- Module: `github.com/alexfalkowski/go-signal/v2`.
 - Read current toolchain details from repo files such as `go.mod`,
   `.circleci/config.yml`, and `bin/`; do not duplicate them here.
 - Purpose: small library for startup/shutdown hooks around OS signals.
-- Main files: `signal.go`, `run_test.go`, `serve_test.go`, `signal_test.go`,
-  `internal/test/`, `cmd/main.go`, `README.md`, `.circleci/config.yml`.
-- Public surface includes lifecycle helpers (`Register`, `Run`, `Serve`,
-  `Shutdown`, `Terminate`, `Go`, `Timer`), lifecycle constructors/defaults, hooks,
-  the `Signal` alias with its exported signal vars (`Interrupt`, `Termination`,
-  `Hangup`), `Raise` (sends a signal to the current process), and sentinel
-  helpers/errors.
+- Main files: `signal.go`, `app.go`, `options.go`, `hook.go`, `timer.go`, `app_test.go`, `timer_test.go`,
+  `internal/lifecycle/`, `signaltest/`,
+  `cmd/main.go`, `README.md`, `.circleci/config.yml`.
+- The root `signal` package owns `App`, construction options, `Hook`, `Handler`,
+  `Lifecycle`, `Shutdowner`, timeout/panic errors, and OS signal selectors.
+- Lifecycle execution is internal; root signal owns OS notification.
+  The public API has no process-wide default lifecycle or public `di` and
+  `lifecycle` packages. `App` exposes only `Run` and `Serve`; `signaltest`
+  wraps the internal engine for component tests.
 - `cmd/main.go` is a manual testing script for `make run`, not production
   surface. Do not require `cmd/main_test.go` or raise missing command coverage
   for `cmd/main.go` during `$test-gaps` reviews.
@@ -37,43 +39,37 @@ CI order: `make source-key`, `make clean`, `make dep`, `make clean`,
 
 ## Behavior
 
-- The package stores a process-wide default `*Lifecycle` in
-  `sync.Pointer[Lifecycle]`; `init()` sets it to `NewDefaultLifecycle()` with a
-  30-second stop timeout.
-- `Hook` callbacks are optional; `Start`, `Tick`, and `Stop` treat nil
-  callbacks as no-ops.
-- `Lifecycle.Register` is setup-time only, before `Run` or `Serve`; it is not
-  concurrent-safe.
-- `Run` starts all hooks in registration order, joins startup errors, rolls back
-  only successfully started hooks on startup failure, and always runs stop hooks
-  after successful startup.
-- `Run`, `Serve`, and `Timer` use fresh timeout-bound background contexts for
-  rollback/shutdown stop hooks. Returning `context.Cause(ctx)` from an expired
-  stop context should match `signal.ErrTimeout`.
-- `Serve` is the final process-lifetime blocking call: it always resets and
-  owns `SIGINT` and `SIGTERM`, plus any additional `signal.Signal` values
-  passed as variadic arguments (`signal.Interrupt`, `signal.Termination`,
-  `signal.Hangup` are the exported names; `Signal` aliases `os.Signal`); it
-  does not restore prior signal handlers after returning, and shutdown can come
-  from parent cancellation, an OS signal in the active set, or
-  `signal.Shutdown()` or `signal.Terminate(err)`.
-- `Shutdown` sends `os.Interrupt` to the current process via `Raise`.
-- `Terminate` records a shutdown cause and sends `os.Interrupt` to the current
-  process; `Serve` returns the cause joined with stop-hook errors.
-- `Raise(sig)` sends `sig` to the current process (`os.FindProcess(os.Getpid())`
-  + `process.Signal(sig)`); `Shutdown` uses it internally, and tests use it
-  directly to simulate arbitrary signals.
-- `Terminated(err)` marks an error with `ErrTerminated`; `IsTerminated` checks
-  it; `Go` calls `Terminate(err)` when it sees one.
-- `Timer` runs `hook.Start` once, ticks at the interval, stops on parent
-  cancellation or hook error, and returns `ErrInvalidInterval` for
-  `interval <= 0`.
+- `NewApp` registers Dig constructors and decorators, then runs setup functions.
+  Construction panics become errors. Resource acquisition belongs in start hooks.
+- `Lifecycle.Append` is setup-time only and is not concurrent-safe. Configure
+  hooks before calling `App.Run` or `App.Serve`.
+- Hooks have optional callbacks; nil callbacks are no-ops. Hook panics become
+  errors matching `signal.ErrRecovered`.
+- Each application owns its lifecycle and programmatic shutdown request.
+  It supports one execution; construct a fresh app for each command or retry.
+  Startup stops at the first error/cancellation and rolls back successfully
+  started hooks. Cleanup runs in reverse order and joins errors.
+- Default startup and stop deadlines are 15 seconds. An available result takes
+  precedence over waiting-context cancellation. Waiting cannot interrupt a Go
+  callback; late startup completion still receives cleanup after a canceled wait.
+- Internal cleanup detaches cancellation so hooks can run with a fresh
+  deadline. Timeout errors match `signal.ErrTimeout` and `context.DeadlineExceeded`.
+- `App.Serve` listens for SIGINT/SIGTERM and additional signals through
+  `os/signal.NotifyContext` and unregisters its notifications on return.
+- `Shutdowner.Shutdown(code)` is application-local and sends no OS signal. The
+  first code wins, including a buffered request when cancellation is also ready.
+  A non-zero code returns `ExitError`, joined with startup or cleanup errors.
+- The caller owns process exit. `App.Run` and `App.Serve` consume shutdown
+  requests internally; `App.Serve` additionally handles OS signals.
+- `Timer(ctx, interval, tick)` blocks and calls a non-nil handler sequentially,
+  starting after one positive interval. Cancellation between callbacks returns
+  nil; callback errors take precedence and panics match `ErrRecovered`.
+  Non-positive intervals return `ErrInvalidInterval`. Lifecycle hooks own worker
+  cancellation and waiting through `go-sync.Go` and its task.
 
 ## Tests
 
-- Tests use external package `signal_test` and commonly pass `t.Context()`.
+- Tests use external packages such as `signal_test` and commonly pass `t.Context()`.
 - Do not add tests for `cmd/main.go`; it is only a manual testing script.
-- Several `Serve` and `Timer` tests intentionally unblock via
-  `signal.Shutdown()` after `time.Sleep(time.Second)`; they are
-  timing-sensitive by design.
-- `TestHTTPServe` binds to `127.0.0.1:0`.
+- Signal tests run serially because notification changes process-wide handlers.
+- HTTP lifecycle tests bind to `127.0.0.1:0`.

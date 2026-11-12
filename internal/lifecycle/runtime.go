@@ -1,19 +1,20 @@
-package signal
+package lifecycle
 
 import (
 	"errors"
 	"fmt"
 )
 
-// ErrRecovered marks an error produced from a panic recovered by [Hook.Start],
-// [Hook.Tick], [Hook.Stop], [Lifecycle.Run]'s handler, or [Go]'s handler.
+// ErrRecovered marks an error produced by recovering a callback panic.
 //
 // Use [errors.Is] to detect a recovered panic:
 //
-//	errors.Is(err, signal.ErrRecovered)
+//	errors.Is(err, lifecycle.ErrRecovered)
 var ErrRecovered = errors.New("signal: recovered")
 
-func convertRecover(value any) error {
+// RecoveredError marks a recovered panic with ErrRecovered and preserves an
+// error value's identity for errors.Is.
+func RecoveredError(value any) error {
 	switch recovered := value.(type) {
 	case error:
 		return fmt.Errorf("%w: %w", recovered, ErrRecovered)

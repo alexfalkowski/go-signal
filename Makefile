@@ -11,23 +11,15 @@ benchmarks: lifecycle-benchmarks
 
 # Run lifecycle hook benchmarks with 100 iterations.
 lifecycle-benchmarks:
-	@$(MAKE) benchtime=100x benchmark
+	@$(MAKE) package=. benchtime=100x benchmark
 
 # Run bounded fuzz tests with 1000 executions per target by default.
 # Set fuzztime=<duration-or-count> to override the default.
-fuzzes: lifecycle-fuzz timer-fuzz terminated-fuzz
+fuzzes: lifecycle-fuzz
 
 # Fuzz lifecycle hook orchestration using fuzztime (default 1000x).
 lifecycle-fuzz:
-	@$(MAKE) package=. name=FuzzLifecycleRunHookMatrix fuzz
-
-# Fuzz timer entry guards using fuzztime (default 1000x).
-timer-fuzz:
-	@$(MAKE) package=. name=FuzzTimerEntryGuards fuzz
-
-# Fuzz terminated-error wrapping using fuzztime (default 1000x).
-terminated-fuzz:
-	@$(MAKE) package=. name=FuzzTerminatedWrapping fuzz
+	@$(MAKE) package=. name=FuzzLifecycleHookMatrix fuzz
 
 # Run the manual example with param=start|timer|terminate (required).
 # The start and timer modes wait for interruption; terminate shuts down itself.
