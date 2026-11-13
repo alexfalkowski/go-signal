@@ -1,5 +1,4 @@
-// Package main provides the runnable example used by `make run`.
-//
-// The command demonstrates the library's startup, timer, and termination flows
-// against the `github.com/alexfalkowski/go-signal` package.
+// Package main provides the manual application used by make run.
+// It demonstrates constructor resolution, registration of Process lifecycle
+// methods, a periodic worker, and application-local shutdown through App.
 package main

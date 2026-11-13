@@ -3,13 +3,13 @@ package signal_test
 import (
 	"context"
 	"testing"
-	"time"
 
-	"github.com/alexfalkowski/go-signal"
+	"github.com/alexfalkowski/go-signal/v2"
+	"github.com/stretchr/testify/require"
 )
 
-// BenchmarkLifecycleRun measures lifecycle hook orchestration overhead across empty and registered-hook runs.
-func BenchmarkLifecycleRun(b *testing.B) {
+// BenchmarkAppRun measures construction and one lifecycle execution per application.
+func BenchmarkAppRun(b *testing.B) {
 	for _, tc := range []struct {
 		name  string
 		hooks int
@@ -20,26 +20,30 @@ func BenchmarkLifecycleRun(b *testing.B) {
 	} {
 		b.Run(tc.name, func(b *testing.B) {
 			ctx := context.Background()
-			handler := func(context.Context) error {
-				return nil
-			}
-			lifecycle := signal.NewLifeCycle(time.Minute)
-			for range tc.hooks {
-				lifecycle.Register(signal.Hook{
-					OnStart: func(context.Context) error {
-						return nil
-					},
-					OnStop: func(context.Context) error {
-						return nil
-					},
-				})
-			}
+			option := signal.Register(func(r signal.Lifecycle) {
+				for range tc.hooks {
+					r.Append(signal.Hook{
+						OnStart: func(context.Context) error {
+							return nil
+						},
+						OnStop: func(context.Context) error {
+							return nil
+						},
+					})
+				}
+			})
 
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				if err := lifecycle.Run(ctx, handler); err != nil {
-					b.Fatal(err)
+				app, err := signal.NewApp(option)
+				// Keep assertion helper work off the successful timing path.
+				if err != nil {
+					require.NoError(b, err)
+				}
+
+				if err := app.Run(ctx); err != nil {
+					require.NoError(b, err)
 				}
 			}
 		})
