@@ -3,7 +3,7 @@ module github.com/alexfalkowski/go-signal/v2
 go 1.27.0
 
 require (
-	github.com/alexfalkowski/go-sync v1.39.0
+	github.com/alexfalkowski/go-sync v1.40.0
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/dig v1.19.0
 )
